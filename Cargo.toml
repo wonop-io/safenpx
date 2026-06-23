@@ -1,17 +1,13 @@
-[package]
-name = "safe-npx"
-version = "0.1.0-alpha.0"
+[workspace]
+members = ["crates/safe-npx"]
+resolver = "2"
+
+[workspace.package]
 edition = "2021"
 license = "Apache-2.0"
-description = "Rust execution gate that adds package evidence before npx/npm exec runs remote code"
 repository = "https://github.com/wonop-io/safenpx"
-readme = "README.md"
 
-[[bin]]
-name = "safe-npx"
-path = "src/main.rs"
-
-[dependencies]
+[workspace.dependencies]
 anyhow = "1"
 clap = { version = "4", features = ["derive"] }
 serde = { version = "1", features = ["derive"] }

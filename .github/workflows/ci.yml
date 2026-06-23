@@ -1,0 +1,68 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: safenpx-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  policy:
+    name: Policy Preflight
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run policy preflight
+        env:
+          COMPARE_BRANCH: main
+        run: ./policies/check.sh
+
+  test:
+    name: Rust And Bazel
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs: policy
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@1.88.0
+        with:
+          components: rustfmt
+
+      - name: Install cargo-llvm-cov
+        uses: taiki-e/install-action@cargo-llvm-cov
+
+      - name: Install Bazelisk
+        uses: bazel-contrib/setup-bazel@0.15.0
+        with:
+          bazelisk-cache: true
+          disk-cache: true
+          repository-cache: true
+
+      - name: Cargo format
+        run: cargo fmt --all -- --check
+
+      - name: Cargo test
+        run: cargo test
+
+      - name: Coverage
+        run: cargo llvm-cov --workspace --all-targets --fail-under-lines 80
+
+      - name: Bazel test
+        run: bazel test //...

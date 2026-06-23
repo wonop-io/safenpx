@@ -1,0 +1,94 @@
+package(default_visibility = ["//visibility:public"])
+
+exports_files([
+    "check.sh",
+    "bazel-ownership/check.sh",
+    "ci-entry-consistency/check.sh",
+    "dependency-sync/check.sh",
+    "documentation-coverage/check.sh",
+    "generated-artifacts/check.sh",
+    "incomplete-production-rust/check.sh",
+    "index-coverage/check.sh",
+    "local-secret-paths/check.sh",
+    "policy-completeness/check.sh",
+    "secret-hygiene/check.sh",
+])
+
+sh_binary(
+    name = "check_policy_preflight",
+    srcs = ["check.sh"],
+    data = glob(["**"]),
+)
+
+sh_binary(
+    name = "check_bazel_ownership",
+    srcs = ["bazel-ownership/check.sh"],
+    data = ["bazel-ownership/guide.md"],
+)
+
+sh_binary(
+    name = "check_ci_entry_consistency",
+    srcs = ["ci-entry-consistency/check.sh"],
+    data = [
+        "ci-entry-consistency/guide.md",
+        "//:.github/workflows/ci.yml",
+        "//:justfile",
+    ],
+)
+
+sh_binary(
+    name = "check_dependency_sync",
+    srcs = ["dependency-sync/check.sh"],
+    data = ["dependency-sync/guide.md"],
+)
+
+sh_binary(
+    name = "check_generated_artifacts",
+    srcs = ["generated-artifacts/check.sh"],
+    data = ["generated-artifacts/guide.md"],
+)
+
+sh_binary(
+    name = "check_documentation_coverage",
+    srcs = ["documentation-coverage/check.sh"],
+    data = ["documentation-coverage/guide.md"],
+)
+
+sh_binary(
+    name = "check_incomplete_production_rust",
+    srcs = ["incomplete-production-rust/check.sh"],
+    data = ["incomplete-production-rust/guide.md"],
+)
+
+sh_binary(
+    name = "check_index_coverage",
+    srcs = ["index-coverage/check.sh"],
+    data = ["index-coverage/guide.md"],
+)
+
+sh_binary(
+    name = "check_local_secret_paths",
+    srcs = ["local-secret-paths/check.sh"],
+    data = ["local-secret-paths/guide.md"],
+)
+
+sh_binary(
+    name = "check_policy_completeness",
+    srcs = ["policy-completeness/check.sh"],
+    data = ["policy-completeness/guide.md"] + glob(
+        ["**"],
+        exclude = ["policy-completeness/guide.md"],
+    ),
+)
+
+sh_binary(
+    name = "check_secret_hygiene",
+    srcs = ["secret-hygiene/check.sh"],
+    data = ["secret-hygiene/guide.md"],
+)
+
+sh_test(
+    name = "policy_completeness_test",
+    srcs = ["policy-completeness/check.sh"],
+    data = glob(["**"]),
+)

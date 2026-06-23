@@ -1,0 +1,14 @@
+# Keep Bazel behavior predictable for local development and CI.
+common --enable_bzlmod
+common --verbose_failures
+common --experimental_platform_in_output_dir
+
+build --compilation_mode=opt
+build --incompatible_strict_action_env=true
+build --incompatible_enable_cc_toolchain_resolution
+build --incompatible_merge_fixed_and_default_shell_env
+build --jobs=auto
+build --@rules_rust//rust/settings:extra_rustc_flag=-Dwarnings
+
+test --cache_test_results=yes
+test --test_output=errors

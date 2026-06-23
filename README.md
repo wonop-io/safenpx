@@ -53,12 +53,14 @@ The first release should:
 
 ## Repository Map
 
+- `AGENTS.md` and `index.md`: AI-facing repository workflow and navigation.
+- `MODULE.bazel` and `BUILD.bazel`: Bazel module and root build targets.
+- `crates/safe-npx`: Rust CLI scaffold.
 - `docs/technical-scope.typ` and `docs/technical-scope.pdf`: one-page technical scope.
 - `docs/threat-model.md`: threat model and boundaries.
 - `docs/demo-flow-spec.md`: demo script specification, not yet implemented.
 - `docs/public-benefit-plan.md`: OSS, test corpus, and ecosystem benefit plan.
 - `docs/roadmap.md`: public roadmap.
-- `src/main.rs`: Rust CLI scaffold.
 
 ## Safety Language
 

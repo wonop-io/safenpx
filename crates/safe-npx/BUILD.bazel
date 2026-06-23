@@ -1,0 +1,36 @@
+load("@rules_rust//rust:defs.bzl", "rust_binary", "rust_library", "rust_test")
+
+package(default_visibility = ["//visibility:public"])
+
+RUST_DEPS = [
+    "@crates//:anyhow",
+    "@crates//:clap",
+    "@crates//:serde",
+    "@crates//:serde_json",
+]
+
+rust_library(
+    name = "safe-npx-lib",
+    srcs = ["src/lib.rs"],
+    crate_name = "safe_npx",
+    edition = "2021",
+    deps = RUST_DEPS,
+)
+
+rust_binary(
+    name = "safe-npx",
+    srcs = ["src/main.rs"],
+    crate_name = "safe_npx",
+    edition = "2021",
+    deps = [
+        ":safe-npx-lib",
+        "@crates//:anyhow",
+        "@crates//:clap",
+    ],
+)
+
+rust_test(
+    name = "safe-npx_test",
+    crate = ":safe-npx-lib",
+    deps = RUST_DEPS,
+)

@@ -3,3 +3,4 @@ reservations/**/target
 .DS_Store
 *.log
 *.tmp
+bazel-*
