@@ -1,1 +1,0 @@
-/Users/tfr/Documents/Codex/2026-06-23/could-you-download-the-transcript-for/work/safenpx/reservations/crates/safenpx/target/package/safenpx-0.0.0-reserved.0/target/debug/libsafenpx.rlib: /Users/tfr/Documents/Codex/2026-06-23/could-you-download-the-transcript-for/work/safenpx/reservations/crates/safenpx/target/package/safenpx-0.0.0-reserved.0/src/lib.rs
