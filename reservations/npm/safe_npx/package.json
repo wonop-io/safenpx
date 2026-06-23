@@ -1,0 +1,22 @@
+{
+  "name": "safe_npx",
+  "version": "0.0.0-reserved.0",
+  "description": "Reserved package name for safe-npx, a Rust execution gate that adds package evidence before npx/npm exec runs remote code.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/wonop-io/safenpx.git"
+  },
+  "homepage": "https://safenpx.com/",
+  "bugs": {
+    "url": "https://github.com/wonop-io/safenpx/issues"
+  },
+  "keywords": [
+    "npx",
+    "npm",
+    "security",
+    "supply-chain",
+    "rust"
+  ]
+}
+
