@@ -5,7 +5,7 @@ commercial service ever appears.
 
 ## Permissive OSS License
 
-The project is intended to use the MIT License.
+The project is intended to use the Apache License, Version 2.0.
 
 Why:
 
@@ -13,6 +13,8 @@ Why:
 - Agent vendors can integrate without licensing friction.
 - Security researchers can build fixtures and tooling around it.
 - Companies can adopt local policy without a hosted dependency.
+- Contributors and sponsors get explicit patent-license hygiene for shared
+  security infrastructure.
 
 ## Reproducible Test Corpus
 
@@ -70,4 +72,3 @@ If a package evidence registry is built later:
 - third-party audit records are distinguishable from local heuristic reports
 - stale findings are versioned rather than silently overwritten
 - self-hosting guidance is published
-

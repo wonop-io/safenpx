@@ -149,7 +149,7 @@
 #v(4mm)
 
 #text(size: 8.5pt, fill: muted)[
-  Public benefit commitments: MIT license, reproducible package test corpus,
+  Public benefit commitments: Apache-2.0 license, reproducible package test corpus,
   package-manager documentation, agent-vendor JSON schema guidance, and opt-in
   registry design for exact artifact audit records.
 ]

@@ -80,6 +80,5 @@ Avoid:
 
 ## License
 
-This project is intended to be released under a permissive open-source license.
+This project is licensed under the Apache License, Version 2.0.
 See `LICENSE.md`.
-

@@ -2,7 +2,7 @@
   "name": "@wonop/safenpx",
   "version": "0.0.0-reserved.0",
   "description": "Reserved scoped package name for safe-npx, a Rust execution gate that adds package evidence before npx/npm exec runs remote code.",
-  "license": "MIT",
+  "license": "Apache-2.0",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/wonop-io/safenpx.git"
@@ -22,4 +22,3 @@
     "access": "public"
   }
 }
-
