@@ -14,11 +14,24 @@ Reserve immediately:
 - `@wonop/safe-npx`
 - `@wonop/safenpx`
 
-Current check from 2026-06-23:
+Current status from 2026-06-23:
 
-- all five returned `E404 Not Found` from `npm view`, which means they appear
-  unclaimed or inaccessible.
-- this machine is not logged into npm, so publishing could not be completed.
+- `safe-npx` is published as `0.0.0-reserved.0`.
+- `safenpx` was rejected by npm because it is too similar to `safe-npx`.
+- `safe_npx` was rejected by npm because it is too similar to `safe-npx`.
+- `@wonop/safe-npx` was accepted by `npm publish`; `npm access` lists it as
+  public/read-write for `troelsfr`, but the public `npm view` endpoint was still
+  returning 404 immediately after publish.
+- `@wonop/safenpx` was accepted by `npm publish`; `npm access` lists it as
+  public/read-write for `troelsfr`, but the public `npm view` endpoint was still
+  returning 404 immediately after publish.
+
+Follow-up:
+
+- Re-check the two scoped packages after registry propagation.
+- If `npm view @wonop/safe-npx` or `npm view @wonop/safenpx` still returns 404,
+  open an npm support ticket with the publish logs and the output of:
+  `npm access list packages @wonop --json`.
 
 ### crates.io
 
@@ -27,12 +40,10 @@ Reserve immediately:
 - `safe-npx`
 - `safenpx`
 
-Current check from 2026-06-23:
+Current status from 2026-06-23:
 
-- `cargo search safe-npx --limit 10` returned no matches.
-- `cargo search safenpx --limit 10` returned no matches.
-- this machine has no Cargo registry token, so publishing could not be
-  completed.
+- `safe-npx` is published as `0.1.0-alpha.0`.
+- `safenpx` is published as `0.0.0-reserved.0`.
 
 ## Required Accounts
 
@@ -123,4 +134,3 @@ cargo info safenpx
 - Keep the Rust crate as the canonical implementation.
 - When the real npm distribution exists, `safe-npx` should install or wrap the
   Rust binary, not reimplement the security logic in JavaScript.
-
