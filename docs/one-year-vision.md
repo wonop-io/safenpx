@@ -83,8 +83,9 @@ Reason: very recent release with lifecycle script
 Proceed? [y/N]
 ```
 
-If the user says yes, `safe-npx` runs the same command the user intended, using
-the inspected artifact. If the user says no, nothing from the package runs.
+If the user says yes, `safe-npx` runs only when the inspected artifact belongs
+to a verified execution closure. If the user says no, nothing from the package
+runs.
 
 For agents and automation, the same decision should be available as stable JSON:
 
@@ -117,17 +118,15 @@ security ritual.
 By the one-year mark, the project should be a focused, production-quality Rust
 CLI with a small set of reliable supporting pieces:
 
-- A wrapper for `npx` and `npm exec` that never runs package code before
-  inspection and policy evaluation.
+- A wrapper for `npx` and `npm exec` that inspects before package code runs.
 - A resolver and artifact verifier for common npm package specs.
 - A static evidence extractor for package metadata and tarball contents.
-- A policy engine that returns `allow`, `ask`, `deny`, or `override-required`.
+- A policy engine that returns the canonical local decision enum.
 - Human-readable terminal output and stable JSON output.
 - A local cache for exact package-version evidence and previous approvals.
 - A reproducible fixture corpus for malicious packages, compromised maintainers,
   typo-squats, lifecycle scripts, and agent-driven blind execution.
-- Documentation for humans, coding agents, and teams integrating the JSON
-  decision format.
+- Documentation for humans, agents, and teams integrating the JSON format.
 
 Rust is appropriate because the CLI needs predictable startup, careful
 filesystem and process boundaries, and a small auditable binary with minimal
@@ -224,17 +223,18 @@ inspection and execution.
 The resolver turns user intent into exact package coordinates without executing
 package code.
 
-Year-one support should start with:
+Year-one support should start with exact versions, then grow only after each
+floating form preserves the inspected closure:
 
-- `name`
 - `name@version`
-- `name@latest`
-- scoped packages such as `@scope/name`
+- `@scope/name@version`
+- `name@latest` and `@scope/name@latest` after tag-race proof
+- unversioned names after floating-intent proof
 
 Complex version ranges, workspace context, alternate package managers, peer
-dependency behavior, and lockfile-specific semantics should be delegated to
-existing package-manager behavior where possible rather than reimplemented
-prematurely.
+dependency behavior, and lockfile-specific semantics should be delegated only
+when delegation preserves the inspected closure. Otherwise `safe-npx` should
+refuse rather than reimplement npm prematurely.
 
 Unsupported specs should produce a clear refusal that says what was unsupported,
 whether anything was downloaded, and the nearest supported command form. They
@@ -287,12 +287,9 @@ track. Without them, `safe-npx` is an evidence and policy gate, not containment.
 
 ### 5. Policy Engine
 
-The policy engine turns evidence into a decision:
-
-- `allow`: proceed without interaction.
-- `ask`: show evidence and require approval.
-- `deny`: stop execution.
-- `override-required`: allow only with an explicit, logged override.
+The policy engine turns evidence into the canonical decision enum: `allow`,
+`ask`, `deny`, `unsupported`, `inspection_error`, or `execution_refused`.
+Explicit override is a `required_next_action`, not a decision enum value.
 
 Policy should work locally first. Organization-managed policy can follow once
 the local loop is useful and trusted.
@@ -303,7 +300,7 @@ The CLI has two contracts.
 
 Inspect mode resolves, downloads, verifies, extracts evidence, and returns a
 decision without running package code. JSON output is inspect mode unless an
-explicit execute flag or command path is used.
+explicit execute command is used.
 
 Execute mode may run only after policy allows the verified execution closure.
 That closure includes the root artifact, selected binary, generated shims,
@@ -389,7 +386,7 @@ The first 90 days should prove the local decision loop.
 ### 30 Days
 
 - Prove the core loop, not the whole product.
-- Resolve `name`, `name@version`, `name@latest`, and scoped package specs.
+- Resolve exact-version specs first; add `latest` only after tag-race proof.
 - Download tarballs and verify integrity.
 - Decide the execution mechanism for exact inspected bytes.
 - Prove in tests that the inspected tarball digest is the executed artifact.

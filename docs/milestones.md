@@ -20,7 +20,8 @@ For every supported command, `safe-npx` follows this model:
 2. Download the exact tarball.
 3. Verify integrity and record artifact identity.
 4. Inspect metadata and package contents without running package code.
-5. Decide: allow, ask, deny, or stop because more proof is required.
+5. Decide with the canonical enum: allow, ask, deny, unsupported,
+   inspection_error, or execution_refused.
 6. Execute only if the inspected bytes are the bytes that will run.
 
 Execution closure means every local artifact that can execute as part of the
@@ -168,6 +169,8 @@ V0 stance:
 - First runnable package class: exact version, one selected bin, no lifecycle
   scripts, no dependency installation unless the dependency closure is fully
   verified, no npm re-resolution, and macOS/Linux first.
+- M2 must choose the first execution path: root-only/no-deps runnable subset,
+  fully verified dependency closure, or inspect-only alpha.
 - Deny dependency lifecycle scripts by default until they are part of the
   verified closure.
 - Treat dependency declarations as evidence only unless dependencies are
@@ -222,6 +225,8 @@ Deliverables:
 - Human report separating facts, provisional heuristics, decision, and authority
   context.
 - Versioned JSON schema with deterministic ordering and golden fixture outputs.
+- Compatibility rule: additive fields are allowed in `0.x`, enum additions
+  require a schema bump, and enum semantic changes require a migration note.
 - JSON fields for `schema_version`, `artifact`, `command_intent`,
   `source_context`, `authority_context`, `facts`, `heuristics`,
   `external_evidence`, `attestations`, `release_diff`, `decision`, `reasons`,
@@ -230,6 +235,8 @@ Deliverables:
   `release_diff`; V0 must not implement hosted audits or release diffs.
 - Decision receipt fields for local/shareable records: artifact digest, command
   intent, evidence summary, policy version, timestamp, and redaction metadata.
+  M3 defines the shape; M4 defines semantics; M5 may cache receipts only after
+  authority-context tests pass.
 - Privacy and redaction rules for reports and JSON.
 
 Evidence v0:
@@ -295,7 +302,8 @@ Initial thresholds:
 - Large package warning: tarball larger than 5 MB.
 - Large file-count warning: more than 500 files.
 - Lifecycle script: ask in interactive mode, stop in non-interactive mode.
-- Integrity mismatch, unsupported closure, or resolver ambiguity: deny.
+- Integrity mismatch or resolver ambiguity: deny.
+- Unsupported closure: execution_refused.
 - Hard denials are proof failures. Heuristic warnings should not become denials
   until validated.
 
@@ -338,9 +346,9 @@ Deliverables:
 - Execute mode for exact-version specs that pass the closure proof.
 - Later support for `latest` after tag-race fixtures pass.
 - Approval prompt for interactive mode.
-- Explicit inspect-only behavior for `--json` unless an execute path is chosen.
-  Agent execution must carry the prior artifact identity forward instead of
-  triggering a second resolution.
+- Explicit inspect-only behavior for `--json` unless `safe-npx execute` is
+  chosen. Agent execution must carry the prior artifact identity forward instead
+  of triggering a second resolution.
 - Local approval cache keyed by artifact digest, command intent, policy version,
   registry source, authority context, and expiry.
 - Cache invalidation on digest, policy, registry source, authority context, or
@@ -348,6 +356,8 @@ Deliverables:
 - Compatibility matrix showing common `npx` commands that alpha supports,
   refuses, or intentionally does not emulate.
 - Alpha package distribution for dogfooding.
+- Install path documented for one package manager or binary release, with
+  versioned upgrade and uninstall notes.
 
 Acceptance criteria:
 
@@ -439,6 +449,7 @@ These are real opportunities, but not core milestone blockers:
 - Author-facing audit badges.
 - Release diff mode beyond placeholder fields.
 - Broad private registry productization.
+- Windows execution semantics beyond smoke or experimental support.
 - `pnpm dlx`, `yarn dlx`, `bun x`, and other ecosystems.
 - Runtime sandbox profiles.
 - Package author preview mode for local tarballs.
