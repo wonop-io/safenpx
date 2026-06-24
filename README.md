@@ -61,6 +61,7 @@ The first release should:
 - `docs/demo-flow-spec.md`: demo script specification, not yet implemented.
 - `docs/public-benefit-plan.md`: OSS, test corpus, and ecosystem benefit plan.
 - `docs/roadmap.md`: public roadmap.
+- `docs/one-year-vision.md`: one-year product and architecture vision.
 
 ## Safety Language
 
