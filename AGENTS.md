@@ -32,7 +32,7 @@ This repository is the public scaffold for `safe-npx`, a Rust execution gate for
 - After work is merged or no longer planned, update the issue with `just issue-done ISSUE=123` or close it manually with a clear reason.
 - Use `just roadmap-status` to get the current online issue/project snapshot before planning a work session.
 - Use `playbooks/repository/plan-issue.md` when planning an issue before implementation.
-- Use conventional commits for every commit, for example `feat:`, `fix:`, `docs:`, `test:`, `refactor:`, or `chore:`.
+- Use conventional commits for every commit, and include the GitHub issue id as the scope whenever it makes sense, for example `feat(37): verify npm integrity`, `fix(8): consume failure fixtures`, or `docs(35): add registry trace`; tiny incidental chores may use an unscoped `chore:`.
 
 ## Build And Test Workflow
 
