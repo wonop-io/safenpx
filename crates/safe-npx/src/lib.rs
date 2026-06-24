@@ -14,11 +14,14 @@ mod fixtures;
 mod inspect;
 /// Package spec parser.
 mod parser;
+/// Public npm registry metadata client.
+mod registry;
 
 pub use contracts::*;
 pub use fixtures::*;
 pub use inspect::*;
 pub use parser::*;
+pub use registry::*;
 
 /// Command-line arguments accepted by the `safe-npx` binary.
 #[derive(Debug, Parser)]
