@@ -12,8 +12,8 @@ download and execute remote code with broad access to the local machine.
 
 The default prompt asks for trust before it gives useful evidence. `safe-npx`
 should change that moment. It should resolve the exact package version, verify
-the artifact, inspect what is about to run, apply policy, and only then delegate
-to the normal `npx` / `npm exec` path.
+the artifact, inspect what is about to run, apply policy, and only then run the
+intended command through a verified execution path.
 
 The year-one promise is deliberately narrow:
 
@@ -418,7 +418,6 @@ The first 90 days should prove the local decision loop.
 
 ### 90 Days
 
-- Add release diff mode for previously seen package versions.
 - Add CI mode for fail-closed execution.
 - Add `.npmrc` smoke support for auth, scoped registries, and precedence
   reporting; do not build a private package platform.
