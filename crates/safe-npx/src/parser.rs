@@ -74,7 +74,7 @@ fn parse_exact_package_spec(spec: &str) -> Option<PackageSpecParse> {
     if name.contains('/') {
         return Some(unsupported(UnsupportedSpecCategory::Other));
     }
-    if is_unsupported_version(version) {
+    if !is_exact_semver(version) {
         return Some(unsupported(UnsupportedSpecCategory::VersionRange));
     }
 
@@ -96,7 +96,7 @@ fn parse_scoped_exact_package_spec(spec: &str) -> Option<PackageSpecParse> {
     if package.contains('/') {
         return Some(unsupported(UnsupportedSpecCategory::Other));
     }
-    if is_unsupported_version(version) {
+    if !is_exact_semver(version) {
         return Some(unsupported(UnsupportedSpecCategory::VersionRange));
     }
 
@@ -126,28 +126,75 @@ fn malformed(raw: &str) -> PackageSpecParse {
     })
 }
 
-/// Return true when a version token is outside M1 exact-version support.
-fn is_unsupported_version(version: &str) -> bool {
-    let lower = version.to_ascii_lowercase();
-    lower == "latest"
-        || lower == "*"
-        || lower.contains('x')
-        || lower.contains('*')
-        || lower.starts_with('^')
-        || lower.starts_with('~')
-        || lower.starts_with('>')
-        || lower.starts_with('<')
-        || lower.contains(" - ")
-        || lower.contains("||")
+/// Return true when a version token is an exact SemVer version.
+fn is_exact_semver(version: &str) -> bool {
+    let (without_build, build) = split_once_optional(version, '+');
+    if let Some(build) = build {
+        if !valid_dot_identifiers(build, false) {
+            return false;
+        }
+    }
+
+    let (core, prerelease) = split_once_optional(without_build, '-');
+    if let Some(prerelease) = prerelease {
+        if !valid_dot_identifiers(prerelease, true) {
+            return false;
+        }
+    }
+
+    let mut core_parts = core.split('.');
+    let major = core_parts.next();
+    let minor = core_parts.next();
+    let patch = core_parts.next();
+    if core_parts.next().is_some() {
+        return false;
+    }
+
+    matches!(
+        (major, minor, patch),
+        (Some(major), Some(minor), Some(patch))
+            if valid_numeric_identifier(major)
+                && valid_numeric_identifier(minor)
+                && valid_numeric_identifier(patch)
+    )
+}
+
+/// Split once on a separator and keep the missing suffix explicit.
+fn split_once_optional(input: &str, separator: char) -> (&str, Option<&str>) {
+    input
+        .split_once(separator)
+        .map_or((input, None), |(head, tail)| (head, Some(tail)))
+}
+
+/// Validate dot-separated prerelease or build identifiers.
+fn valid_dot_identifiers(value: &str, enforce_numeric_leading_zero: bool) -> bool {
+    !value.is_empty()
+        && value.split('.').all(|part| {
+            !part.is_empty()
+                && part
+                    .bytes()
+                    .all(|byte| byte.is_ascii_alphanumeric() || byte == b'-')
+                && (!enforce_numeric_leading_zero
+                    || !part.bytes().all(|byte| byte.is_ascii_digit())
+                    || valid_numeric_identifier(part))
+        })
+}
+
+/// Validate a SemVer numeric identifier.
+fn valid_numeric_identifier(value: &str) -> bool {
+    !value.is_empty()
+        && value.bytes().all(|byte| byte.is_ascii_digit())
+        && (value == "0" || !value.starts_with('0'))
 }
 
 /// Return true when the input looks like an unsupported npm execution command.
 fn is_npm_exec_variant(spec: &str) -> bool {
     spec == "npm"
         || spec == "npx"
+        || spec == "npm-exec"
         || spec.starts_with("npm ")
         || spec.starts_with("npx ")
-        || spec.starts_with("npm-exec")
+        || spec.starts_with("npm-exec ")
 }
 
 /// Return true when the input is a direct tarball URL.
@@ -171,8 +218,21 @@ fn is_local_path(spec: &str) -> bool {
         || spec == ".."
         || spec.starts_with("./")
         || spec.starts_with("../")
+        || spec.starts_with(".\\")
+        || spec.starts_with("..\\")
         || spec.starts_with('/')
+        || spec.contains('\\')
         || spec.starts_with("file:")
+        || is_windows_drive_path(spec)
+}
+
+/// Return true when the input looks like a Windows drive path.
+fn is_windows_drive_path(spec: &str) -> bool {
+    let bytes = spec.as_bytes();
+    bytes.len() >= 3
+        && bytes[0].is_ascii_alphabetic()
+        && bytes[1] == b':'
+        && (bytes[2] == b'\\' || bytes[2] == b'/')
 }
 
 /// Return true when the input is an npm alias spec.
@@ -233,6 +293,22 @@ mod tests {
         assert_eq!(spec.scope, Some("scope".to_string()));
     }
 
+    /// Verifies exact versions can include prerelease/build identifiers.
+    #[test]
+    fn parses_exact_semver_prerelease_and_build_versions() {
+        for raw in [
+            "create-example@1.2.3-next.0",
+            "create-example@1.2.3+exp.sha",
+            "npm-exec-helper@1.2.3",
+        ] {
+            let intent = parse_command_intent(raw, Vec::new());
+            assert!(matches!(
+                intent.package_spec,
+                PackageSpecParse::Supported(_)
+            ));
+        }
+    }
+
     /// Verifies unsupported specs fail closed before network-capable work.
     #[test]
     fn rejects_unsupported_specs_without_downloads() {
@@ -246,8 +322,14 @@ mod tests {
                 "create-example@^1.2.3",
                 UnsupportedSpecCategory::VersionRange,
             ),
+            ("create-example@beta", UnsupportedSpecCategory::VersionRange),
+            ("create-example@next", UnsupportedSpecCategory::VersionRange),
+            ("create-example@1", UnsupportedSpecCategory::VersionRange),
+            ("create-example@1.2", UnsupportedSpecCategory::VersionRange),
             ("github:user/repo", UnsupportedSpecCategory::GitUrl),
             ("./local-package", UnsupportedSpecCategory::LocalPath),
+            ("..\\local@1.2.3", UnsupportedSpecCategory::LocalPath),
+            ("C:\\tmp\\pkg@1.2.3", UnsupportedSpecCategory::LocalPath),
             (
                 "https://example.test/pkg.tgz",
                 UnsupportedSpecCategory::TarballUrl,

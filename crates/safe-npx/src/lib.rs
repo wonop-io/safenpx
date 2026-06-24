@@ -54,6 +54,8 @@ pub enum Decision {
 pub struct Report<'a> {
     /// Package spec requested by the caller.
     pub package_spec: &'a str,
+    /// Parsed command intent before registry or artifact access.
+    pub intent: CommandIntent,
     /// Current recommendation from the policy gate.
     pub recommendation: Decision,
     /// Implementation status for the scaffold.
@@ -66,6 +68,7 @@ pub struct Report<'a> {
 pub fn build_report(cli: &Cli) -> Report<'_> {
     Report {
         package_spec: &cli.package_spec,
+        intent: parse_command_intent(&cli.package_spec, cli.args.clone()),
         recommendation: cli.decision.clone(),
         status: "scaffold",
         note: "Resolution, integrity verification, evidence extraction, and fail-closed execution proof are not implemented yet.",
@@ -78,9 +81,26 @@ pub fn render_report(cli: &Cli, report: &Report<'_>) -> anyhow::Result<String> {
         return Ok(serde_json::to_string_pretty(report)?);
     }
 
+    let intent_line = match &report.intent.package_spec {
+        PackageSpecParse::Supported(package_spec) => format!(
+            "Parsed: {}@{}\nForwarded args: {}\n",
+            package_spec.name,
+            package_spec.version,
+            format_forwarded_args(&report.intent.forwarded_args)
+        ),
+        PackageSpecParse::Unsupported(unsupported) => format!(
+            "Unsupported: {:?} ({:?})\nDownloaded: {}\n",
+            unsupported.reason, unsupported.category, unsupported.downloaded
+        ),
+        PackageSpecParse::Malformed(malformed) => format!(
+            "Malformed: {:?}\nDownloaded: {}\n",
+            malformed.reason, malformed.downloaded
+        ),
+    };
+
     Ok(format!(
-        "Package: {}\nStatus: scaffold\nRecommendation: {:?}\n\nThis Rust CLI scaffold does not execute package code yet.\nNext step: implement exact artifact resolution and fail closed when execution byte identity cannot be proven.\n",
-        cli.package_spec, cli.decision
+        "Package: {}\nStatus: scaffold\nRecommendation: {:?}\n{}\nThis Rust CLI scaffold does not execute package code yet.\nNext step: implement exact artifact resolution and fail closed when execution byte identity cannot be proven.\n",
+        cli.package_spec, cli.decision, intent_line
     ))
 }
 
@@ -88,6 +108,15 @@ pub fn render_report(cli: &Cli, report: &Report<'_>) -> anyhow::Result<String> {
 pub fn run(cli: &Cli) -> anyhow::Result<String> {
     let report = build_report(cli);
     render_report(cli, &report)
+}
+
+/// Format forwarded args for terminal output.
+fn format_forwarded_args(args: &[String]) -> String {
+    if args.is_empty() {
+        return "[]".to_string();
+    }
+
+    args.join(" ")
 }
 
 /// Unit tests for CLI parsing and scaffold rendering.
@@ -113,6 +142,7 @@ mod tests {
         let report = build_report(&cli);
 
         assert_eq!(report.package_spec, "left-pad@1.3.0");
+        assert!(report.intent.is_supported());
         assert_eq!(report.recommendation, Decision::Deny);
         assert_eq!(report.status, "scaffold");
         assert!(report.note.contains("not implemented yet"));
@@ -125,7 +155,40 @@ mod tests {
         let output = run(&cli).expect("json rendering should succeed");
 
         assert!(output.contains("\"package_spec\": \"create-example@1.2.3\""));
+        assert!(output.contains("\"state\": \"supported\""));
+        assert!(output.contains("\"name\": \"create-example\""));
+        assert!(output.contains("\"version\": \"1.2.3\""));
         assert!(output.contains("\"recommendation\": \"ask\""));
+    }
+
+    /// Verifies machine-readable output includes forwarded args.
+    #[test]
+    fn renders_json_with_forwarded_args_for_agents() {
+        let cli = Cli::parse_from([
+            "safe-npx",
+            "--json",
+            "create-example@1.2.3",
+            "--",
+            "--template",
+            "react",
+        ]);
+        let output = run(&cli).expect("json rendering should succeed");
+
+        assert!(output.contains("\"forwarded_args\": ["));
+        assert!(output.contains("\"--template\""));
+        assert!(output.contains("\"react\""));
+    }
+
+    /// Verifies unsupported specs are visible in public CLI JSON.
+    #[test]
+    fn renders_json_for_unsupported_specs() {
+        let cli = Cli::parse_from(["safe-npx", "--json", "create-example@next"]);
+        let output = run(&cli).expect("json rendering should succeed");
+
+        assert!(output.contains("\"state\": \"unsupported\""));
+        assert!(output.contains("\"reason\": \"unsupported_spec\""));
+        assert!(output.contains("\"category\": \"version_range\""));
+        assert!(output.contains("\"downloaded\": false"));
     }
 
     /// Verifies human-readable scaffold output for terminal use.
@@ -135,6 +198,7 @@ mod tests {
         let output = run(&cli).expect("text rendering should succeed");
 
         assert!(output.contains("Package: create-example@1.2.3"));
+        assert!(output.contains("Parsed: create-example@1.2.3"));
         assert!(output.contains("Recommendation: Allow"));
         assert!(output.contains("does not execute package code yet"));
     }
