@@ -1,5 +1,12 @@
 # Playbook Specification Policy
 
-`safe-npx` does not currently use Wonop-style playbooks. This policy slot is kept for parity.
+Repository playbooks must be discoverable and carry required metadata.
 
-Fix by adding a repository playbook specification before introducing `playbooks/`.
+Fix by ensuring:
+
+- `playbooks/index.md` exists.
+- `playbooks/repository/playbook-specification.md` exists.
+- Every playbook markdown file under `playbooks/`, except `index.md`, starts
+  with YAML front matter.
+- Front matter includes `title`, `domain`, `summary`, `created`, `last_used`,
+  and `last_updated`.

@@ -13,8 +13,10 @@ This repository is the public scaffold for `safe-npx`, a Rust execution gate for
 - `crates/`: first-party Rust crates. The CLI lives in `crates/safe-npx`.
 - `docs/`: product scope, roadmap, threat model, demo spec, and public benefit plan.
 - `policies/`: repository policy checks wired through Bazel, `just`, and CI.
+- `playbooks/`: repository playbooks for repeatable planning and workflow.
 - `reservations/`: package-handle reservation packages for npm and crates.io.
 - `tools/github/`: GitHub Issues, roadmap, and Codex planning helpers.
+- `work-trace/`: checked-in planning artifacts, organized by GitHub issue id.
 - `BUILD.bazel` and `MODULE.bazel`: Bazel entrypoints and dependency wiring.
 
 ## Planning Workflow
@@ -29,6 +31,7 @@ This repository is the public scaffold for `safe-npx`, a Rust execution gate for
 - Before starting work, inspect the issue with `just issue-view ISSUE=123` and move it into progress with `just issue-start ISSUE=123`.
 - After work is merged or no longer planned, update the issue with `just issue-done ISSUE=123` or close it manually with a clear reason.
 - Use `just roadmap-status` to get the current online issue/project snapshot before planning a work session.
+- Use `playbooks/repository/plan-issue.md` when planning an issue before implementation.
 - Use conventional commits for every commit, for example `feat:`, `fix:`, `docs:`, `test:`, `refactor:`, or `chore:`.
 
 ## Build And Test Workflow

@@ -26,6 +26,7 @@ named `plan-issue`.
 
 - [x] Checked that issue `#22` exists.
 - [x] Created checked-in work-trace scaffold for this issue.
-- [ ] Add the `plan-issue` playbook.
-- [ ] Add playbook navigation.
-- [ ] Run `just test`.
+- [x] Add the `plan-issue` playbook.
+- [x] Add playbook navigation.
+- [x] Adopt playbook-spec policy validation.
+- [x] Run `just test`.
