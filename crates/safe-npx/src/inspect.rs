@@ -44,10 +44,12 @@ pub struct CountingProbe {
 }
 
 impl NetworkProbe for CountingProbe {
+    /// Count a registry metadata attempt.
     fn resolve_metadata(&mut self, _package_spec: &PackageSpec) {
         self.registry_calls += 1;
     }
 
+    /// Count a tarball download attempt.
     fn download_tarball(&mut self, _package_spec: &PackageSpec) {
         self.tarball_calls += 1;
     }
@@ -86,10 +88,12 @@ pub fn assert_no_network_for_raw_spec(raw_spec: &str) {
 }
 
 #[cfg(test)]
+/// Tests for the inspect boundary and no-network fixtures.
 mod tests {
     use super::*;
 
     #[test]
+    /// Verifies malformed specs stop before network hooks.
     fn malformed_specs_do_not_reach_network_hooks() {
         for raw in MALFORMED_NO_NETWORK_CASES {
             assert_no_network_for_raw_spec(raw);
@@ -97,6 +101,7 @@ mod tests {
     }
 
     #[test]
+    /// Verifies unsupported specs stop before network hooks.
     fn unsupported_specs_do_not_reach_network_hooks() {
         for raw in UNSUPPORTED_NO_NETWORK_CASES {
             assert_no_network_for_raw_spec(raw);
@@ -104,6 +109,7 @@ mod tests {
     }
 
     #[test]
+    /// Verifies the machine-readable fixture manifest matches the case matrix.
     fn fixture_manifest_matches_no_network_cases() {
         let manifest = include_str!("../fixtures/no-network-manifest.txt");
         let expected = expected_manifest_lines();
@@ -113,6 +119,7 @@ mod tests {
     }
 
     #[test]
+    /// Verifies supported specs enter the future network boundary.
     fn supported_specs_enter_network_hooks() {
         let mut probe = CountingProbe::default();
 
@@ -122,6 +129,7 @@ mod tests {
         assert_eq!(probe.tarball_calls, 1);
     }
 
+    /// Build the expected no-network manifest from shared cases.
     fn expected_manifest_lines() -> Vec<&'static str> {
         let mut lines = vec![
             "# safe-npx no-network fixture manifest",
@@ -140,6 +148,7 @@ mod tests {
         lines
     }
 
+    /// Return the manifest line for a known no-network case.
     fn manifest_line(kind: &str, raw: &str) -> &'static str {
         match (kind, raw) {
             ("malformed", "") => "malformed||0|0",
