@@ -37,7 +37,7 @@ Goal: make the project credible, buildable, governed, and easy for Codex and con
 
 Goal: resolve a requested package spec to exact npm artifacts without executing package code.
 
-- Parse package specs and package manager intent.
+- Parse supported exact-version package specs.
 - Resolve npm dist-tags to exact versions.
 - Download root tarball without running lifecycle scripts.
 - Verify root artifact integrity.
