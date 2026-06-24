@@ -29,19 +29,39 @@ pub struct Cli {
     #[arg(long, value_enum, default_value_t = Decision::Ask)]
     pub decision: Decision,
 
-    /// Package spec tokens, for example create-example@1.2.3.
-    #[arg(required = true, num_args = 1..)]
-    pub package_spec: Vec<String>,
-
-    /// Arguments passed through to the package command after `--`.
-    #[arg(last = true)]
-    pub args: Vec<String>,
+    /// Command tokens, split into package spec and forwarded args at `--`.
+    #[arg(
+        required = true,
+        num_args = 1..,
+        allow_hyphen_values = true,
+        trailing_var_arg = true
+    )]
+    pub command: Vec<String>,
 }
 
 impl Cli {
     /// Return the raw package spec string that should be classified.
     pub fn raw_package_spec(&self) -> String {
-        self.package_spec.join(" ")
+        self.spec_tokens().join(" ")
+    }
+
+    /// Return arguments that should be passed through after classification.
+    pub fn forwarded_args(&self) -> Vec<String> {
+        self.command
+            .iter()
+            .skip_while(|token| token.as_str() != "--")
+            .skip(1)
+            .cloned()
+            .collect()
+    }
+
+    /// Return command tokens before the forwarded-args separator.
+    fn spec_tokens(&self) -> Vec<String> {
+        self.command
+            .iter()
+            .take_while(|token| token.as_str() != "--")
+            .cloned()
+            .collect()
     }
 }
 
@@ -78,7 +98,7 @@ pub fn build_report(cli: &Cli) -> Report {
 
     Report {
         package_spec: raw_package_spec.clone(),
-        intent: parse_command_intent(&raw_package_spec, cli.args.clone()),
+        intent: parse_command_intent(&raw_package_spec, cli.forwarded_args()),
         recommendation: cli.decision.clone(),
         status: "scaffold",
         note: "Resolution, integrity verification, evidence extraction, and fail-closed execution proof are not implemented yet.",
@@ -210,6 +230,39 @@ mod tests {
         assert!(output.contains("\"package_spec\": \"npm exec create-example@1.2.3\""));
         assert!(output.contains("\"state\": \"unsupported\""));
         assert!(output.contains("\"category\": \"npm_exec_variant\""));
+    }
+
+    /// Verifies hyphenated npm/npx flags reach parser classification.
+    #[test]
+    fn renders_json_for_flagged_exec_variants() {
+        let cases = [
+            vec![
+                "safe-npx",
+                "--json",
+                "npm",
+                "exec",
+                "--package",
+                "create-example@1.2.3",
+            ],
+            vec![
+                "safe-npx",
+                "--json",
+                "npm",
+                "exec",
+                "-c",
+                "create-example@1.2.3 --help",
+            ],
+            vec!["safe-npx", "--json", "npx", "--yes", "create-example@1.2.3"],
+        ];
+
+        for case in cases {
+            let cli = Cli::parse_from(case);
+            let output = run(&cli).expect("json rendering should succeed");
+
+            assert!(output.contains("\"state\": \"unsupported\""));
+            assert!(output.contains("\"category\": \"npm_exec_variant\""));
+            assert!(output.contains("\"downloaded\": false"));
+        }
     }
 
     /// Verifies human-readable scaffold output for terminal use.
