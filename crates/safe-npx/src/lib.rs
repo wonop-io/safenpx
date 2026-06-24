@@ -6,11 +6,17 @@
 use clap::{Parser, ValueEnum};
 use serde::Serialize;
 
+/// Shared M1 data contracts.
 mod contracts;
+/// M1 fixture manifest support.
+mod fixtures;
+/// Inspect boundary and no-network harness.
 mod inspect;
+/// Package spec parser.
 mod parser;
 
 pub use contracts::*;
+pub use fixtures::*;
 pub use inspect::*;
 pub use parser::*;
 

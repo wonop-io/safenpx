@@ -13,11 +13,15 @@ rust_library(
     name = "safe-npx-lib",
     srcs = [
         "src/contracts.rs",
+        "src/fixtures.rs",
         "src/inspect.rs",
         "src/lib.rs",
         "src/parser.rs",
     ],
-    compile_data = ["fixtures/no-network-manifest.txt"],
+    compile_data = [
+        "fixtures/m1-fixture-manifest.txt",
+        "fixtures/no-network-manifest.txt",
+    ],
     crate_name = "safe_npx",
     edition = "2021",
     deps = RUST_DEPS,
