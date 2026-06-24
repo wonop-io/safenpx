@@ -186,6 +186,7 @@ fn renders_human_scaffold_output() {
     assert!(output.contains("M1 evidence: verified"));
     assert!(output.contains("Resolved: create-example@1.2.3"));
     assert!(output.contains("Integrity: verified"));
+    assert!(output.contains("Integrity metadata: sha512-"));
     assert!(output.contains("This Rust CLI does not execute package code in M1"));
 }
 
@@ -213,6 +214,30 @@ fn renders_json_for_integrity_mismatch() {
     assert!(output.contains("\"state\": \"failed\""));
     assert!(output.contains("\"reason\": \"integrity_mismatch\""));
     assert!(output.contains("\"downloaded\": true"));
+}
+
+#[test]
+fn registry_failure_remains_ask_when_allow_was_requested() {
+    let cli = Cli::parse_from([
+        "safe-npx",
+        "--json",
+        "--decision",
+        "allow",
+        "create-example@1.2.3",
+    ]);
+    let resolver = RootArtifactResolver::new(
+        NpmMetadataClient::public(StubRegistryTransport::new(vec![Ok(RegistryHttpResponse {
+            status: 404,
+            body: "{}".to_string(),
+        })])),
+        TarballDownloader::new(StubTarballTransport::new(Vec::new())),
+    );
+    let output = run_with_resolver(&cli, &resolver);
+
+    assert!(output.contains("\"recommendation\": \"ask\""));
+    assert!(output.contains("\"state\": \"failed\""));
+    assert!(output.contains("\"reason\": \"missing_package\""));
+    assert!(output.contains("\"downloaded\": false"));
 }
 
 fn run_with_resolver(

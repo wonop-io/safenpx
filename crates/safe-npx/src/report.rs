@@ -87,7 +87,7 @@ pub fn build_report_with_resolver<M: RegistryTransport, D: TarballTransport>(
             Err(error) => {
                 let downloaded = error.reason == M1Reason::IntegrityMismatch;
                 (
-                    error.decision.unwrap_or_else(|| cli.decision.clone()),
+                    error.decision.unwrap_or(Decision::Ask),
                     M1Evidence::Failed {
                         reason: error.reason,
                         downloaded,
@@ -180,12 +180,13 @@ fn render_evidence(m1: &M1Evidence) -> String {
             integrity_status,
             artifact_identity,
         } => format!(
-            "M1 evidence: verified\nResolved: {}@{}\nRegistry: {}\nTarball: {}\nIntegrity: {}\nDigest: {}:{}\n",
+            "M1 evidence: verified\nResolved: {}@{}\nRegistry: {}\nTarball: {}\nIntegrity: {}\nIntegrity metadata: {}\nDigest: {}:{}\n",
             resolved_package.name,
             resolved_package.version,
             resolved_package.registry.url,
             resolved_package.tarball_url,
             integrity_status,
+            resolved_package.integrity,
             artifact_identity.digest_algorithm,
             artifact_identity.digest
         ),
