@@ -6,7 +6,7 @@ This crate owns the `safe-npx` CLI.
 
 - Parse the package spec and execution policy flags.
 - Produce human-readable and JSON scaffold output.
-- Grow into exact package resolution, integrity checks, dependency graph inspection, lifecycle-script detection, policy decisions, and eventual `npm exec` delegation.
+- Grow into exact package resolution, integrity checks, package evidence extraction, lifecycle-script detection, policy decisions, and fail-closed execution refusal when byte identity cannot be proven.
 
 ## Bazel
 

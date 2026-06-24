@@ -18,6 +18,13 @@ body:
     validations:
       required: true
   - type: textarea
+    id: fail-closed
+    attributes:
+      label: Fail-closed behavior
+      description: What must stop instead of falling back to raw npx/npm exec?
+    validations:
+      required: true
+  - type: textarea
     id: acceptance
     attributes:
       label: Acceptance criteria
@@ -27,3 +34,9 @@ body:
     id: tests
     attributes:
       label: Test corpus impact
+      description: Fixtures, canaries, golden outputs, or policy gates required.
+  - type: input
+    id: exit-code
+    attributes:
+      label: Exit-code behavior
+      description: If relevant, which decision and exit code should result?

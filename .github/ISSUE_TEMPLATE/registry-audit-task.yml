@@ -23,8 +23,20 @@ body:
       label: Dependency impact
       description: How should findings snowball to dependencies or dependents?
   - type: textarea
+    id: proof
+    attributes:
+      label: Proof obligation
+      description: What artifact identity, integrity, audit trail, or closure property must be proven?
+    validations:
+      required: true
+  - type: textarea
     id: acceptance
     attributes:
       label: Acceptance criteria
     validations:
       required: true
+  - type: textarea
+    id: tests
+    attributes:
+      label: Fixtures and verification
+      description: What fixture, policy check, or golden output proves this?

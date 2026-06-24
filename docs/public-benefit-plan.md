@@ -49,7 +49,8 @@ The project should document:
 - lifecycle-script behavior
 - what package-manager APIs or commands are needed
 - how to reproduce findings
-- where `safe-npx` deliberately delegates rather than reimplements resolution
+- where package-manager delegation is acceptable only when it preserves the
+  inspected execution closure
 
 ## Documentation For Agent Vendors
 

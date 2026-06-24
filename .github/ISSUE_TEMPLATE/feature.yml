@@ -23,13 +23,27 @@ body:
       label: Track
       options:
         - CLI
-        - Registry
+        - Artifact
+        - Execution
         - Policy
+        - Fixtures
         - Security
         - Docs
         - Community
     validations:
       required: true
+  - type: textarea
+    id: proof
+    attributes:
+      label: Proof obligation
+      description: What must be proven, refused, or kept fail-closed?
+    validations:
+      required: true
+  - type: textarea
+    id: fixtures
+    attributes:
+      label: Fixtures and tests
+      description: What fixture, golden output, policy gate, or test coverage is required?
   - type: textarea
     id: acceptance
     attributes:
@@ -42,3 +56,13 @@ body:
     attributes:
       label: Security considerations
       description: What can go wrong if this is implemented poorly?
+  - type: textarea
+    id: docs
+    attributes:
+      label: Documentation impact
+      description: Which docs, README sections, or index files need updates?
+  - type: input
+    id: exit-code
+    attributes:
+      label: Exit-code behavior
+      description: If relevant, which decision and exit code should result?

@@ -32,3 +32,7 @@ This is the first AI-facing index for `safe-npx`. Keep it short and load child i
 - `docs/technical-scope.typ`: one-page technical scope source.
 - `docs/public-benefit-plan.md`: OSS and ecosystem benefit plan.
 - `docs/roadmap.md`: six-month public roadmap and planning operating model.
+- `docs/milestones.md`: milestone plan and acceptance criteria.
+- `docs/handle-reservation.md`: npm and crates.io package handle status.
+- `CONTRIBUTING.md`: public contributor workflow.
+- `SECURITY.md`: security disclosure process.

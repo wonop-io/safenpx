@@ -30,9 +30,10 @@
 #v(3mm)
 
 #text(size: 10.5pt, fill: muted)[
-  `safe-npx` is a Rust execution gate for `npx` / `npm exec`. It keeps the
-  package execution workflow, but replaces the thin yes/no prompt with exact
-  package evidence before remote code runs.
+  `safe-npx` is a Rust execution gate for `npx` / `npm exec`. Its first job is
+  to replace the thin yes/no prompt with exact package evidence before remote
+  code runs, then fail closed when inspected bytes cannot be proven to be the
+  bytes that would execute.
 ]
 
 #v(4mm)
@@ -43,13 +44,13 @@
 [
   #text(size: 12pt, weight: 800)[v0.1 must do]
   #v(1.5mm)
-  - Parse `safe-npx <package-spec> [-- args]`
-  - Resolve the root package to an exact version
+  - Parse exact-version specs such as `name@1.2.3`
+  - Reject unsupported specs without raw `npx` fallback
   - Download the root tarball without executing scripts
-  - Verify integrity from registry or lock metadata
+  - Verify integrity from registry metadata
   - Inspect `package.json`, bins, lifecycle scripts, file count, size, and readability signals
-  - Generate a dependency graph with lifecycle scripts disabled
-  - Print an evidence report and ask before delegation
+  - Label dependency declarations as evidence unless the closure is verified
+  - Print an evidence report and refuse unverifiable execution
   - Emit deterministic JSON for agents and CI
 ],
 [
@@ -62,6 +63,7 @@
   - Upload private package metadata by default
   - Rely on opaque AI-only scoring
   - Attempt perfect JavaScript static analysis
+  - Claim dependency closure before it is resolved and verified
 ])
 
 #v(5mm)
@@ -93,7 +95,7 @@
   - executable bins
   - typo-squat similarity
   - bundled or obfuscated code
-  - dependency warnings
+  - dependency declarations
 ])
 
 #v(5mm)
@@ -109,17 +111,17 @@
   - `serde` / `serde_json` for reports
   - `reqwest` + `tokio` for registry fetch
   - `tar`, `flate2`, `sha2`, `base64` for artifacts
-  - `petgraph` for dependency graph modeling
+  - fixture crates for closure and lifecycle-script tests
 ],
 [
   #text(weight: 700)[Core modules]
   - package spec parser
   - registry client
   - tarball verifier
-  - lockfile parser
   - static signal extractor
   - policy evaluator
-  - execution delegator
+  - execution closure proof
+  - fail-closed runner
 ])
 
 #v(5mm)

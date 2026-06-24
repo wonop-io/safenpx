@@ -27,3 +27,10 @@ body:
     attributes:
       label: Impact
       description: What workflow or safety guarantee is affected?
+  - type: textarea
+    id: verification
+    attributes:
+      label: Verification
+      description: What test, fixture, policy check, or command should prove the fix?
+    validations:
+      required: true

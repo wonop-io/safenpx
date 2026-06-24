@@ -23,7 +23,7 @@ pub struct Cli {
     #[arg(long, value_enum, default_value_t = Decision::Ask)]
     pub decision: Decision,
 
-    /// Package spec, for example create-example@latest.
+    /// Package spec, for example create-example@1.2.3.
     pub package_spec: String,
 
     /// Arguments passed through to the package command after `--`.
@@ -62,7 +62,7 @@ pub fn build_report(cli: &Cli) -> Report<'_> {
         package_spec: &cli.package_spec,
         recommendation: cli.decision.clone(),
         status: "scaffold",
-        note: "Resolution, integrity verification, graph inspection, and execution delegation are not implemented yet.",
+        note: "Resolution, integrity verification, evidence extraction, and fail-closed execution proof are not implemented yet.",
     }
 }
 
@@ -73,7 +73,7 @@ pub fn render_report(cli: &Cli, report: &Report<'_>) -> anyhow::Result<String> {
     }
 
     Ok(format!(
-        "Package: {}\nStatus: scaffold\nRecommendation: {:?}\n\nThis Rust CLI scaffold does not execute package code yet.\nNext step: implement exact artifact resolution before delegation to npm exec.\n",
+        "Package: {}\nStatus: scaffold\nRecommendation: {:?}\n\nThis Rust CLI scaffold does not execute package code yet.\nNext step: implement exact artifact resolution and fail closed when execution byte identity cannot be proven.\n",
         cli.package_spec, cli.decision
     ))
 }
@@ -93,9 +93,9 @@ mod tests {
     /// Verifies that the CLI defaults to asking before execution.
     #[test]
     fn parses_default_ask_decision() {
-        let cli = Cli::parse_from(["safe-npx", "create-example@latest"]);
+        let cli = Cli::parse_from(["safe-npx", "create-example@1.2.3"]);
 
-        assert_eq!(cli.package_spec, "create-example@latest");
+        assert_eq!(cli.package_spec, "create-example@1.2.3");
         assert_eq!(cli.decision, Decision::Ask);
         assert!(!cli.json);
     }
@@ -103,10 +103,10 @@ mod tests {
     /// Verifies that parsed arguments become the scaffold report.
     #[test]
     fn builds_scaffold_report() {
-        let cli = Cli::parse_from(["safe-npx", "--decision", "deny", "left-pad@latest"]);
+        let cli = Cli::parse_from(["safe-npx", "--decision", "deny", "left-pad@1.3.0"]);
         let report = build_report(&cli);
 
-        assert_eq!(report.package_spec, "left-pad@latest");
+        assert_eq!(report.package_spec, "left-pad@1.3.0");
         assert_eq!(report.recommendation, Decision::Deny);
         assert_eq!(report.status, "scaffold");
         assert!(report.note.contains("not implemented yet"));
@@ -115,20 +115,20 @@ mod tests {
     /// Verifies machine-readable output for agent workflows.
     #[test]
     fn renders_json_for_agents() {
-        let cli = Cli::parse_from(["safe-npx", "--json", "create-example@latest"]);
+        let cli = Cli::parse_from(["safe-npx", "--json", "create-example@1.2.3"]);
         let output = run(&cli).expect("json rendering should succeed");
 
-        assert!(output.contains("\"package_spec\": \"create-example@latest\""));
+        assert!(output.contains("\"package_spec\": \"create-example@1.2.3\""));
         assert!(output.contains("\"recommendation\": \"ask\""));
     }
 
     /// Verifies human-readable scaffold output for terminal use.
     #[test]
     fn renders_human_scaffold_output() {
-        let cli = Cli::parse_from(["safe-npx", "--decision", "allow", "create-example@latest"]);
+        let cli = Cli::parse_from(["safe-npx", "--decision", "allow", "create-example@1.2.3"]);
         let output = run(&cli).expect("text rendering should succeed");
 
-        assert!(output.contains("Package: create-example@latest"));
+        assert!(output.contains("Package: create-example@1.2.3"));
         assert!(output.contains("Recommendation: Allow"));
         assert!(output.contains("does not execute package code yet"));
     }

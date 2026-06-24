@@ -14,24 +14,21 @@ Reserve immediately:
 - `@wonop/safe-npx`
 - `@wonop/safenpx`
 
-Current status from 2026-06-23:
+Current status from 2026-06-24:
 
 - `safe-npx` is published as `0.0.0-reserved.0`.
 - `safenpx` was rejected by npm because it is too similar to `safe-npx`.
 - `safe_npx` was rejected by npm because it is too similar to `safe-npx`.
-- `@wonop/safe-npx` was accepted by `npm publish`; `npm access` lists it as
-  public/read-write for `troelsfr`, but the public `npm view` endpoint was still
-  returning 404 immediately after publish.
-- `@wonop/safenpx` was accepted by `npm publish`; `npm access` lists it as
-  public/read-write for `troelsfr`, but the public `npm view` endpoint was still
-  returning 404 immediately after publish.
+- `@wonop/safe-npx` is published as `0.0.0-reserved.0`.
+- `@wonop/safenpx` is published as `0.0.0-reserved.0`.
 
-Follow-up:
+Verified with:
 
-- Re-check the two scoped packages after registry propagation.
-- If `npm view @wonop/safe-npx` or `npm view @wonop/safenpx` still returns 404,
-  open an npm support ticket with the publish logs and the output of:
-  `npm access list packages @wonop --json`.
+```bash
+npm view safe-npx name version description --json
+npm view @wonop/safe-npx name version description --json
+npm view @wonop/safenpx name version description --json
+```
 
 ### crates.io
 
@@ -40,10 +37,17 @@ Reserve immediately:
 - `safe-npx`
 - `safenpx`
 
-Current status from 2026-06-23:
+Current status from 2026-06-24:
 
 - `safe-npx` is published as `0.1.0-alpha.0`.
 - `safenpx` is published as `0.0.0-reserved.0`.
+
+Verified with:
+
+```bash
+cargo info safe-npx
+cargo info safenpx
+```
 
 ## Required Accounts
 

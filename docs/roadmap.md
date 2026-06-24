@@ -2,7 +2,7 @@
 
 This roadmap is intentionally public and early. The goal is to invite critique before the implementation hardens.
 
-It is also the repo-backed planning narrative for the next six months. GitHub Issues and the `safe-npx Roadmap` GitHub Project are the online source of truth for day-to-day tracking.
+It is also the repo-backed planning narrative for the next six months. GitHub Issues and the public [`safe-npx Roadmap`](https://github.com/orgs/wonop-io/projects/6) GitHub Project are the online source of truth for day-to-day tracking.
 
 ## Operating Model
 

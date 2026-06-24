@@ -11,17 +11,18 @@ not whether the exact artifact has been audited.
 `safe-npx` keeps the workflow and fixes the decision point.
 
 ```bash
-safe-npx create-example@latest
+safe-npx create-example@1.2.3
 ```
 
 Before execution, the tool should resolve the exact package artifact, verify
-integrity, inspect metadata and package contents, summarize the dependency
-graph, apply local policy, and ask before delegating to `npm exec`.
+integrity, inspect metadata and package contents, apply local policy, and fail
+closed when it cannot prove that the inspected bytes are the bytes that would
+run.
 
 For agents:
 
 ```bash
-safe-npx --json create-example@latest
+safe-npx --json create-example@1.2.3
 ```
 
 The JSON output lets a coding agent stop, explain the risk, and ask the user
@@ -40,20 +41,24 @@ package code runs.
 
 The first release should:
 
-- Resolve the requested package to an exact version.
+- Parse supported exact-version package specs.
 - Download and verify the root package tarball.
-- Generate a dependency graph without running lifecycle scripts.
-- Track integrity for dependency nodes where available.
+- Inspect root package metadata and contents without running lifecycle scripts.
+- Treat dependency declarations as evidence until dependency closure is fully
+  resolved and verified.
 - Show publisher, release age, package size, bins, lifecycle scripts, and
   suspicious metadata.
 - Flag typo-squatting, recently changed packages, and bundled or obfuscated
   code.
 - Emit readable output for humans and JSON policy output for agents.
-- Delegate to `npm exec` only after policy or the user allows it.
+- Refuse unsupported or unverifiable command shapes instead of falling back to
+  raw `npx`.
 
 ## Repository Map
 
 - `AGENTS.md` and `index.md`: AI-facing repository workflow and navigation.
+- `CONTRIBUTING.md`: contributor workflow, issue-backed work, and verification.
+- `SECURITY.md`: vulnerability reporting and security expectations.
 - `MODULE.bazel` and `BUILD.bazel`: Bazel module and root build targets.
 - `crates/safe-npx`: Rust CLI scaffold.
 - `docs/technical-scope.typ` and `docs/technical-scope.pdf`: one-page technical scope.
@@ -63,6 +68,16 @@ The first release should:
 - `docs/roadmap.md`: public roadmap.
 - `docs/one-year-vision.md`: one-year product and architecture vision.
 - `docs/milestones.md`: implementation milestones derived from the one-year vision.
+- `docs/handle-reservation.md`: npm and crates.io package handle status.
+
+## Planning
+
+Work is tracked in GitHub Issues and the public
+[safe-npx Roadmap](https://github.com/orgs/wonop-io/projects/6).
+
+Non-trivial work should start from an issue. The next ready tasks can be found
+in the [M0 milestone](https://github.com/wonop-io/safenpx/milestone/1) and
+later milestone queues.
 
 ## Safety Language
 

@@ -26,3 +26,10 @@ body:
     id: acceptance
     attributes:
       label: Acceptance criteria
+    validations:
+      required: true
+  - type: textarea
+    id: issue-workflow
+    attributes:
+      label: Issue workflow impact
+      description: Does this affect roadmap, templates, labels, contributor docs, or project fields?
