@@ -42,11 +42,19 @@ pub struct Cli {
 impl Cli {
     /// Return the raw package spec string that should be classified.
     pub fn raw_package_spec(&self) -> String {
+        if self.is_exec_variant_command() {
+            return self.command.join(" ");
+        }
+
         self.spec_tokens().join(" ")
     }
 
     /// Return arguments that should be passed through after classification.
     pub fn forwarded_args(&self) -> Vec<String> {
+        if self.is_exec_variant_command() {
+            return Vec::new();
+        }
+
         self.command
             .iter()
             .skip_while(|token| token.as_str() != "--")
@@ -62,6 +70,14 @@ impl Cli {
             .take_while(|token| token.as_str() != "--")
             .cloned()
             .collect()
+    }
+
+    /// Return true when the raw command is an unsupported npm/npx exec shape.
+    fn is_exec_variant_command(&self) -> bool {
+        matches!(
+            self.command.first().map(String::as_str),
+            Some("npm" | "npx" | "npm-exec")
+        )
     }
 }
 
@@ -310,6 +326,27 @@ mod tests {
             assert!(output.contains("\"category\": \"npm_exec_variant\""));
             assert!(output.contains("\"downloaded\": false"));
         }
+    }
+
+    /// Verifies npm exec separators remain part of the rejected command.
+    #[test]
+    fn renders_json_for_exec_variant_with_inner_separator() {
+        let cli = Cli::parse_from([
+            "safe-npx",
+            "--json",
+            "npm",
+            "exec",
+            "--",
+            "create-example@1.2.3",
+        ]);
+        let output = run(&cli).expect("json rendering should succeed");
+
+        assert!(output.contains("\"package_spec\": \"npm exec -- create-example@1.2.3\""));
+        assert!(output.contains("\"requested\": \"npm exec -- create-example@1.2.3\""));
+        assert!(output.contains("\"state\": \"unsupported\""));
+        assert!(output.contains("\"category\": \"npm_exec_variant\""));
+        assert!(output.contains("\"forwarded_args\": []"));
+        assert!(output.contains("\"downloaded\": false"));
     }
 
     /// Verifies human-readable scaffold output for terminal use.
