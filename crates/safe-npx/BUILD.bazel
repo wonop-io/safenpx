@@ -11,7 +11,11 @@ RUST_DEPS = [
 
 rust_library(
     name = "safe-npx-lib",
-    srcs = ["src/lib.rs"],
+    srcs = [
+        "src/contracts.rs",
+        "src/lib.rs",
+        "src/parser.rs",
+    ],
     crate_name = "safe_npx",
     edition = "2021",
     deps = RUST_DEPS,
