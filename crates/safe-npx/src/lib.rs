@@ -7,9 +7,11 @@ use clap::{Parser, ValueEnum};
 use serde::Serialize;
 
 mod contracts;
+mod inspect;
 mod parser;
 
 pub use contracts::*;
+pub use inspect::*;
 pub use parser::*;
 
 /// Command-line arguments accepted by the `safe-npx` binary.
