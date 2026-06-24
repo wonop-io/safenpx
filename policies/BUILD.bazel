@@ -3,15 +3,71 @@ package(default_visibility = ["//visibility:public"])
 exports_files([
     "check.sh",
     "bazel-ownership/check.sh",
+    "bazel-ownership/guide.md",
+    "changed-file-coverage/check.sh",
+    "changed-file-coverage/guide.md",
     "ci-entry-consistency/check.sh",
+    "ci-entry-consistency/guide.md",
+    "clean-repo-before-tests/check.sh",
+    "clean-repo-before-tests/guide.md",
+    "conventional-commits/check.sh",
+    "conventional-commits/guide.md",
+    "db-contract-fail-closed/check.sh",
+    "db-contract-fail-closed/guide.md",
+    "dead-code/check.sh",
+    "dead-code/guide.md",
     "dependency-sync/check.sh",
+    "dependency-sync/guide.md",
     "documentation-coverage/check.sh",
+    "documentation-coverage/guide.md",
+    "file-size/check.sh",
+    "file-size/guide.md",
     "generated-artifacts/check.sh",
+    "generated-artifacts/guide.md",
     "incomplete-production-rust/check.sh",
+    "incomplete-production-rust/guide.md",
     "index-coverage/check.sh",
+    "index-coverage/guide.md",
+    "interface-boundary/check.sh",
+    "interface-boundary/guide.md",
+    "just-test-nightly-fmt/check.sh",
+    "just-test-nightly-fmt/guide.md",
     "local-secret-paths/check.sh",
+    "local-secret-paths/guide.md",
+    "migration-timestamp/check.sh",
+    "migration-timestamp/guide.md",
+    "migrations-immutable/check.sh",
+    "migrations-immutable/guide.md",
+    "no-javascript/check.sh",
+    "no-javascript/guide.md",
+    "playbook-spec/check.sh",
+    "playbook-spec/guide.md",
     "policy-completeness/check.sh",
+    "policy-completeness/guide.md",
+    "policy-exceptions/check.sh",
+    "policy-exceptions/guide.md",
+    "policy-order/check.sh",
+    "policy-order/guide.md",
+    "protected-promotions/check.sh",
+    "protected-promotions/guide.md",
+    "release-evidence/check.sh",
+    "release-evidence/guide.md",
+    "release-inventory/check.sh",
+    "release-inventory/guide.md",
+    "release-provenance/check.sh",
+    "release-provenance/guide.md",
+    "replicated-code/check.sh",
+    "replicated-code/guide.md",
     "secret-hygiene/check.sh",
+    "secret-hygiene/guide.md",
+    "sql-repository-boundary/check.sh",
+    "sql-repository-boundary/guide.md",
+    "supply-chain-baseline/check.sh",
+    "supply-chain-baseline/guide.md",
+    "supply-chain-delta/check.sh",
+    "supply-chain-delta/guide.md",
+    "typescript-exceptions/check.sh",
+    "typescript-exceptions/guide.md",
 ])
 
 sh_binary(
@@ -20,57 +76,47 @@ sh_binary(
     data = glob(["**"]),
 )
 
-sh_binary(
-    name = "check_bazel_ownership",
-    srcs = ["bazel-ownership/check.sh"],
-    data = ["bazel-ownership/guide.md"],
-)
-
-sh_binary(
-    name = "check_ci_entry_consistency",
-    srcs = ["ci-entry-consistency/check.sh"],
-    data = [
-        "ci-entry-consistency/guide.md",
-        "//:.github/workflows/ci.yml",
-        "//:justfile",
-    ],
-)
-
-sh_binary(
-    name = "check_dependency_sync",
-    srcs = ["dependency-sync/check.sh"],
-    data = ["dependency-sync/guide.md"],
-)
-
-sh_binary(
-    name = "check_generated_artifacts",
-    srcs = ["generated-artifacts/check.sh"],
-    data = ["generated-artifacts/guide.md"],
-)
-
-sh_binary(
-    name = "check_documentation_coverage",
-    srcs = ["documentation-coverage/check.sh"],
-    data = ["documentation-coverage/guide.md"],
-)
-
-sh_binary(
-    name = "check_incomplete_production_rust",
-    srcs = ["incomplete-production-rust/check.sh"],
-    data = ["incomplete-production-rust/guide.md"],
-)
-
-sh_binary(
-    name = "check_index_coverage",
-    srcs = ["index-coverage/check.sh"],
-    data = ["index-coverage/guide.md"],
-)
-
-sh_binary(
-    name = "check_local_secret_paths",
-    srcs = ["local-secret-paths/check.sh"],
-    data = ["local-secret-paths/guide.md"],
-)
+[
+    sh_binary(
+        name = "check_" + policy.replace("-", "_"),
+        srcs = [policy + "/check.sh"],
+        data = [policy + "/guide.md"],
+    )
+    for policy in [
+        "bazel-ownership",
+        "changed-file-coverage",
+        "ci-entry-consistency",
+        "clean-repo-before-tests",
+        "conventional-commits",
+        "db-contract-fail-closed",
+        "dead-code",
+        "dependency-sync",
+        "documentation-coverage",
+        "file-size",
+        "generated-artifacts",
+        "incomplete-production-rust",
+        "index-coverage",
+        "interface-boundary",
+        "just-test-nightly-fmt",
+        "local-secret-paths",
+        "migration-timestamp",
+        "migrations-immutable",
+        "no-javascript",
+        "playbook-spec",
+        "policy-exceptions",
+        "policy-order",
+        "protected-promotions",
+        "release-evidence",
+        "release-inventory",
+        "release-provenance",
+        "replicated-code",
+        "secret-hygiene",
+        "sql-repository-boundary",
+        "supply-chain-baseline",
+        "supply-chain-delta",
+        "typescript-exceptions",
+    ]
+]
 
 sh_binary(
     name = "check_policy_completeness",
@@ -79,12 +125,6 @@ sh_binary(
         ["**"],
         exclude = ["policy-completeness/guide.md"],
     ),
-)
-
-sh_binary(
-    name = "check_secret_hygiene",
-    srcs = ["secret-hygiene/check.sh"],
-    data = ["secret-hygiene/guide.md"],
 )
 
 sh_test(

@@ -31,6 +31,7 @@ This repository is the public scaffold for `safe-npx`, a Rust execution gate for
 
 - Bazel is the canonical build and test path. Prefer `bazel build //...` and `bazel test //...`.
 - Run `./policies/check.sh` or `just policy-checks` before slower build and test work.
+- Keep the policy surface broadly aligned with the Wonop repository policy set; `safe-npx` adapts non-applicable release, database, and playbook policies explicitly rather than silently omitting them.
 - Run `just install-hooks` once in a local clone to install the tracked pre-push hook from `.githooks/`.
 - Cargo is still useful for Rust-native workflows such as `cargo fmt --check` and local crate iteration.
 - When dependencies, crate layout, or package names change, keep Cargo and Bazel wiring in sync.
