@@ -17,3 +17,5 @@ Start at `repository/index.md` for repository workflow playbooks.
   its `work-trace/{issue-id}/` scaffold before implementation begins.
 - `repository/playbook-specification.md`: Define required playbook metadata,
   indexing, and validation rules.
+- `repository/review-turn.md`: Run a prior-commit red-team, blue-team, judge
+  review with at most two re-reviews.

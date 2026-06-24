@@ -8,3 +8,5 @@ Use these playbooks for issue planning and repository workflow governance.
   artifacts under `work-trace/{issue-id}/`.
 - `playbook-specification.md`: Define required playbook metadata, indexing, and
   validation rules.
+- `review-turn.md`: Run a prior-commit red-team, blue-team, judge review with
+  at most two re-reviews.
