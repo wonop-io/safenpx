@@ -119,12 +119,17 @@ pub fn render_report(cli: &Cli, report: &Report) -> anyhow::Result<String> {
             format_forwarded_args(&report.intent.forwarded_args)
         ),
         PackageSpecParse::Unsupported(unsupported) => format!(
-            "Unsupported: {:?} ({:?})\nDownloaded: {}\n",
-            unsupported.reason, unsupported.category, unsupported.downloaded
+            "Rejected: {}\nReason: {}\nCategory: {}\nDownloaded: {}\n",
+            report.intent.requested,
+            reason_name(&unsupported.reason),
+            unsupported_category_name(&unsupported.category),
+            unsupported.downloaded
         ),
         PackageSpecParse::Malformed(malformed) => format!(
-            "Malformed: {:?}\nDownloaded: {}\n",
-            malformed.reason, malformed.downloaded
+            "Rejected: {}\nReason: {}\nDownloaded: {}\n",
+            report.intent.requested,
+            reason_name(&malformed.reason),
+            malformed.downloaded
         ),
     };
 
@@ -147,6 +152,33 @@ fn format_forwarded_args(args: &[String]) -> String {
     }
 
     args.join(" ")
+}
+
+/// Return the stable serialized reason name for human output.
+fn reason_name(reason: &M1Reason) -> &'static str {
+    match reason {
+        M1Reason::UnsupportedSpec => "unsupported_spec",
+        M1Reason::MalformedSpec => "malformed_spec",
+        M1Reason::RegistryError => "registry_error",
+        M1Reason::IntegrityMismatch => "integrity_mismatch",
+        M1Reason::MissingPackage => "missing_package",
+        M1Reason::MissingVersion => "missing_version",
+    }
+}
+
+/// Return the stable serialized unsupported category name for human output.
+fn unsupported_category_name(category: &UnsupportedSpecCategory) -> &'static str {
+    match category {
+        UnsupportedSpecCategory::UnversionedName => "unversioned_name",
+        UnsupportedSpecCategory::VersionRange => "version_range",
+        UnsupportedSpecCategory::GitUrl => "git_url",
+        UnsupportedSpecCategory::LocalPath => "local_path",
+        UnsupportedSpecCategory::TarballUrl => "tarball_url",
+        UnsupportedSpecCategory::Alias => "alias",
+        UnsupportedSpecCategory::MultipleSpecs => "multiple_specs",
+        UnsupportedSpecCategory::NpmExecVariant => "npm_exec_variant",
+        UnsupportedSpecCategory::Other => "other",
+    }
 }
 
 /// Unit tests for CLI parsing and scaffold rendering.
@@ -218,7 +250,22 @@ mod tests {
         assert!(output.contains("\"state\": \"unsupported\""));
         assert!(output.contains("\"reason\": \"unsupported_spec\""));
         assert!(output.contains("\"category\": \"version_range\""));
+        assert!(output.contains("\"forwarded_args\": []"));
         assert!(output.contains("\"downloaded\": false"));
+        assert!(!output.contains("\"execution\""));
+    }
+
+    /// Verifies malformed specs are visible in public CLI JSON.
+    #[test]
+    fn renders_json_for_malformed_specs() {
+        let cli = Cli::parse_from(["safe-npx", "--json", "@scope/"]);
+        let output = run(&cli).expect("json rendering should succeed");
+
+        assert!(output.contains("\"state\": \"malformed\""));
+        assert!(output.contains("\"reason\": \"malformed_spec\""));
+        assert!(output.contains("\"raw\": \"@scope/\""));
+        assert!(output.contains("\"downloaded\": false"));
+        assert!(!output.contains("\"execution\""));
     }
 
     /// Verifies multi-token unsupported forms reach parser classification.
@@ -275,5 +322,17 @@ mod tests {
         assert!(output.contains("Parsed: create-example@1.2.3"));
         assert!(output.contains("Recommendation: Allow"));
         assert!(output.contains("does not execute package code yet"));
+    }
+
+    /// Verifies terminal refusal output names the rejected input.
+    #[test]
+    fn renders_human_refusal_output() {
+        let cli = Cli::parse_from(["safe-npx", "create-example@next"]);
+        let output = run(&cli).expect("text rendering should succeed");
+
+        assert!(output.contains("Rejected: create-example@next"));
+        assert!(output.contains("Reason: unsupported_spec"));
+        assert!(output.contains("Category: version_range"));
+        assert!(output.contains("Downloaded: false"));
     }
 }
