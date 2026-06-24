@@ -14,6 +14,7 @@ rust_library(
     name = "safe-npx-lib",
     srcs = [
         "src/contracts.rs",
+        "src/download.rs",
         "src/fixtures.rs",
         "src/inspect.rs",
         "src/lib.rs",

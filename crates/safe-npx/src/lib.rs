@@ -8,6 +8,8 @@ use serde::Serialize;
 
 /// Shared M1 data contracts.
 mod contracts;
+/// Root tarball byte downloader.
+mod download;
 /// M1 fixture manifest support.
 mod fixtures;
 /// Inspect boundary and no-network harness.
@@ -18,6 +20,7 @@ mod parser;
 mod registry;
 
 pub use contracts::*;
+pub use download::*;
 pub use fixtures::*;
 pub use inspect::*;
 pub use parser::*;
