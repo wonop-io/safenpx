@@ -20,11 +20,10 @@ The year-one promise is deliberately narrow:
 > `safe-npx` is a safety checkpoint before package code from the internet runs.
 
 `safe-npx` has authority over one decision only: whether this exact artifact may
-run through the intended `npx` / `npm exec` path now.
+run through the intended execution path now.
 
-Done well, this should make one-off executable npm packages more usable, not
-merely more frightening. Small CLIs in docs, READMEs, and agent skills should be
-easier to try because the risk is visible before code runs.
+Done well, this should make small CLIs in docs, READMEs, and agent skills easier
+to try because the risk is visible before code runs.
 
 It should not replace npm, prove that code is safe, or rebuild the JavaScript
 package ecosystem. It should make blind remote execution harder to justify and
@@ -35,13 +34,18 @@ inspect, explain, ask, then run the intended command or stop.
 
 ## Terms
 
-- **One-off executable package:** an npm package run as a command through `npx`
-  or `npm exec`, usually without adding it to a project.
+- **One-off executable package:** an npm package run through `npx` / `npm exec`,
+  usually without adding it to a project.
 - **Artifact:** the exact compressed package download, or tarball, selected for
   execution.
 - **Integrity:** identity verification for bytes; not proof of safety.
 - **Lifecycle script:** a package install hook npm may run before the requested
   binary.
+- **Execution closure:** any package, script, binary, shim, or package-manager
+  step that can execute before or during the requested command.
+- **Inspect mode:** resolve, verify, inspect, and report without running package
+  code.
+- **Execute mode:** run only after policy allows the verified execution closure.
 - **Typo-squat:** a malicious package named to resemble a trusted package.
 - **Fail closed:** stop when evidence, resolution, or policy is insufficient.
 
@@ -129,12 +133,12 @@ Rust is appropriate because the CLI needs predictable startup, careful
 filesystem and process boundaries, and a small auditable binary with minimal
 runtime surprise.
 
-The central invariant is: the bytes inspected are the bytes executed. Year one
-must prove this with tests and implementation design, not aspiration.
-`safe-npx` must either execute from the verified tarball it inspected, delegate
-only through a mechanism that pins npm to that exact local artifact, or refuse.
-It must never inspect `name@latest` and then allow `npm exec` to resolve
-`latest` again.
+The central invariant is: every package byte that can execute must be inside the
+verified execution closure. Year one must prove this with tests and
+implementation design, not aspiration. `safe-npx` must either execute directly
+from a verified local closure derived from inspected artifacts, delegate only
+through a mechanism that pins npm to that exact closure, or refuse. It must never
+inspect `name@latest` and then allow `npm exec` to resolve `latest` again.
 
 The product should be organized around three nouns:
 
@@ -156,11 +160,12 @@ before execution:
 - Package size, file count, and unusual package shape.
 - Binaries exposed by the package.
 - Lifecycle scripts such as `preinstall`, `install`, and `postinstall`.
-- Root package dependency declarations, clearly labeled as declarations rather
-  than a complete resolved dependency attack analysis.
-- Similar-name signals, clearly labeled as heuristics and used humbly; no typo
-  detector should imply intent or safety.
-- Whether this exact artifact has been seen or approved locally before.
+- Dependency declarations and, once supported, the verified dependency execution
+  closure; the UI must label which one is being shown.
+- Similar-name and unusual-shape signals, clearly labeled as report-only
+  heuristics until fixture-backed validation proves they should affect policy.
+- Whether this exact artifact and command have been seen or approved locally
+  before, including the authority context in which that happened.
 
 Facts and heuristics must be distinct. Integrity verification is a fact.
 Typo-squat similarity is a heuristic. The UI and JSON schema should not blur the
@@ -169,22 +174,39 @@ difference.
 Static inspection can only report observable pre-execution risks. It cannot
 infer package intent or prove benign behavior.
 
+## What It Catches And Does Not Catch
+
+`safe-npx` should be plain about its protection boundary.
+
+It can catch or interrupt tag movement, resolver ambiguity, artifact mismatch,
+lifecycle scripts before approval, unsupported specs, package-manager behavior
+that would re-resolve, fresh releases, first-seen artifacts, maintainer or
+publisher changes, unusual authority deltas, and agent or CI attempts to run
+remote executable packages without an approval path.
+
+It does not prove inspected code is benign, runtime behavior is safe after
+approval, transitive dependency attacks are covered unless the dependency
+execution closure was resolved and verified, filesystem/network/secret access is
+contained without a sandbox, or typo-like names and unusual package shapes are
+malicious.
+
 ## Default Policy V1
 
 The default policy should separate showing evidence from interrupting execution.
 The report should be visible whenever useful; prompts should be reserved for
 signals strong enough to change behavior.
 
-| Signal | Human default | Agent / CI default | Notes |
+| Signal | Interactive default | Non-interactive default | Notes |
 | --- | --- | --- | --- |
 | Integrity mismatch | deny | deny | Fact, not heuristic. |
-| Inspected artifact cannot be guaranteed as executed artifact | deny | deny | Core invariant. |
+| Execution closure cannot be verified | deny | deny | Core invariant. |
 | Unsupported package spec or resolver ambiguity | deny | deny | No raw `npx` fallback. |
-| Lifecycle script present | ask | stop | Especially `preinstall`, `install`, `postinstall`. |
-| Very recent publish, e.g. under 24 hours | ask | stop | Threshold should be configurable later. |
-| First-seen exact artifact | ask | stop unless policy allows | Cache key includes digest and command intent. |
-| Similar-name signal | ask | stop or ask-required | Heuristic only. |
-| Large or unusual root package shape | ask | stop or ask-required | Heuristic only. |
+| Lifecycle script present in closure | ask | stop | Especially `preinstall`, `install`, `postinstall`. |
+| Very recent publish | ask | stop | Thresholds are experimental and fixture-backed. |
+| First-seen exact artifact | visible report | stop unless policy allows | Not automatically scary for humans. |
+| Maintainer, publisher, registry, or authority-context delta | ask | stop | Approval cache must include authority context. |
+| Similar-name signal | report | report or stop by policy | Heuristic until validated. |
+| Large or unusual package shape | report | report or stop by policy | Heuristic until validated. |
 | Missing optional heuristic data | allow or ask based on facts | stop only if required evidence is missing | Avoid pretending optional signals are facts. |
 
 The policy engine should explain decisions in terms of evidence, not vibes. If
@@ -242,20 +264,26 @@ similarity, and unusual package shape should be labeled as heuristics.
 The hardest risk is not only "what package is this?" It is also "what authority
 will this process have if it runs?"
 
-Year one should make that authority visible even if full sandboxing is deferred:
+Year one should report authority without leaking private data:
 
-- Mode: `human`, `agent`, or `ci`.
-- Current working directory.
-- Environment-variable exposure summary, including whether secrets may be
-  present.
+- Mode: interactive or non-interactive, with agent and CI as named
+  non-interactive callers.
+- Current working directory, reduced to a privacy-preserving project label when
+  possible.
+- Environment exposure summary: counts and categories, not secret values.
+- Whether likely secret-bearing variables are present.
 - Filesystem read/write exposure at normal process privileges.
 - Network availability at normal process privileges.
+- Registry source and whether private registry config was used.
 - Package binary and forwarded arguments.
-- Whether lifecycle scripts would run.
+- Lifecycle script status.
+
+Approval cache keys must include artifact digest, command intent, policy version,
+expiry, registry source, and authority context. An approval in one authority
+context should not silently apply to a materially broader one.
 
 Runtime permissions and sandbox profiles should remain an explicit research
-track. Without them, `safe-npx` is an evidence and policy gate, not a complete
-containment system.
+track. Without them, `safe-npx` is an evidence and policy gate, not containment.
 
 ### 5. Policy Engine
 
@@ -269,33 +297,31 @@ The policy engine turns evidence into a decision:
 Policy should work locally first. Organization-managed policy can follow once
 the local loop is useful and trusted.
 
-### 6. Execution Delegator
+### 6. Inspect And Execute Contract
 
-The execution delegator runs the original command only after resolution,
-verification, evidence extraction, and policy evaluation have completed.
+The CLI has two contracts.
 
-This component should stay small. Everything before execution should be
-inspectable. Everything after approval should be clearly delegated to the normal
-package execution path.
+Inspect mode resolves, downloads, verifies, extracts evidence, and returns a
+decision without running package code. JSON output is inspect mode unless an
+explicit execute flag or command path is used.
 
-The delegator must preserve the artifact invariant. It should either execute the
-exact artifact inspected or fail with a clear explanation. It must never inspect
-one artifact and then let `npm exec` resolve a different one.
+Execute mode may run only after policy allows the verified execution closure.
+That closure includes the root artifact, selected binary, generated shims,
+dependency packages needed by normal execution, and lifecycle scripts that npm
+would run. If `safe-npx` cannot determine or pin that closure, it must refuse.
 
-### 7. Execution Mechanism Spike
-
-The first implementation milestone must decide and document how exact inspected
-bytes become exact executed bytes. Candidate approaches include executing from a
-verified extracted temp directory, constructing a local package spec from the
-verified tarball, or using an npm cache path only if npm can be forced not to
-re-resolve.
+The first execution spike should prefer direct execution from a verified
+extracted closure. Delegating through npm is acceptable only if tests prove npm
+cannot re-resolve tags, ranges, registry metadata, cache entries, or dependency
+versions outside the inspected closure.
 
 Acceptance examples: pass when `safe-npx create-example@latest` resolves
-`3.2.1`, verifies digest `X`, and executes only files derived from digest `X`;
-fail closed when registry metadata changes, npm would re-resolve a tag/range/URL,
-or lifecycle scripts would run before approval.
+`3.2.1`, verifies digest `X`, verifies closure `C`, and executes only files from
+`C`; fail closed when registry metadata changes, npm would re-resolve a
+tag/range/URL, dependency installation would run unapproved lifecycle scripts, or
+the cache cannot prove provenance.
 
-### 8. CLI Contract V1
+### 7. CLI Contract V1
 
 The first stable surface should be explicit enough for humans, agents, and CI:
 `safe-npx <pkg-spec> [-- <args>]` preserves forwarded package arguments;
@@ -308,7 +334,7 @@ attach to artifact digest, package coordinates, command intent, and policy
 version, and invalidate on digest, material metadata, maintainer or publisher
 context, policy, or expiry changes.
 
-### 9. Agent Protocol
+### 8. Agent Protocol
 
 `safe-npx` should provide a stable agent-facing contract from the beginning.
 
@@ -340,6 +366,15 @@ Year-one validation should include:
   compromised-maintainer simulations, typo-like names, obfuscated root packages,
   and dependency-declaration traps.
 - Pass/fail examples for every default policy rule.
+- `npx` compatibility and refusal matrix for supported specs, unsupported specs,
+  forwarded args, bins, lifecycle scripts, cache behavior, and tag moves.
+- Dependency confusion and private-registry precedence fixtures using `.npmrc`
+  and scoped registries.
+- Real incident replay fixtures for compromised maintainers, malicious updates,
+  typo-like names, and lifecycle-script abuse.
+- Command provenance tests for docs, READMEs, generated agent instructions, and
+  `SKILL.md` paths.
+- Privacy tests proving reports and JSON never expose secrets or registry tokens.
 - Latency measurements for clean-cache and warm-cache runs.
 - False-positive review for prompt fatigue.
 - False-negative review for missed suspicious fixtures.
@@ -385,31 +420,36 @@ The first 90 days should prove the local decision loop.
 
 - Add release diff mode for previously seen package versions.
 - Add CI mode for fail-closed execution.
-- Add private registry smoke support for ordinary `.npmrc` authentication and
-  scoped registries, only enough to prove the local safety loop works there.
+- Add `.npmrc` smoke support for auth, scoped registries, and precedence
+  reporting; do not build a private package platform.
 - Publish JSON schema v0.1.
 - Publish the fixture corpus as a benchmark.
-- Publish latency, false-positive, and false-negative notes from real runs.
+- Publish latency, false-positive, and false-negative notes.
 - Recruit early adopters using `safe-npx` in human, agent, or CI workflows.
 - Validate that users or agents changed decisions because of evidence.
 - Treat release diff mode as a stretch unless the core artifact invariant,
   policy table, JSON schema, and validation loop are already stable.
-- Decide whether a hosted audit registry is justified by repeated evidence reuse
-  and user demand.
+- Decide whether hosted audit records are justified by reuse and user demand.
 
 ## Issue-Shaped Milestones
 
 Early work should be tracked as implementation issues, not themes:
 
-- Resolver v0: supported spec matrix, unsupported failures, fixtures.
+- Resolver v0: supported spec matrix, registry config handling, unsupported
+  failures, fixtures.
 - Artifact verifier v0: tarball download, integrity, digest identity.
-- Execution invariant spike: selected delegation mechanism and invariant tests.
-- Inspection safety v0: extract evidence without running package code.
-- Policy v0: threshold table with pass/fail examples.
-- JSON schema v0: artifact, command intent, facts, heuristics, decision,
-  reasons, required next action, and exit code.
-- Report v0: facts, heuristics, decision, and command authority.
-- Fixture manifest v0: package, digest, expected signals, expected policy result.
+- Execution closure spike: selected execute mechanism, dependency/lifecycle
+  closure rules, invariant tests.
+- Inspect mode v0: extract evidence without running package code.
+- Execute mode v0: refusal matrix for cases where closure cannot be pinned.
+- Policy v0: experimental thresholds with fixture-backed pass/fail examples.
+- JSON schema v0: artifact, command intent, authority context, facts,
+  heuristics, decision, reasons, required next action, and exit code.
+- Report v0: facts, heuristics, decision, command authority, and explicit
+  catches/does-not-catch language.
+- Cache trust model v0: approval keys, expiry, authority context, invalidation.
+- Fixture manifest v0: package, digest, closure, expected signals, expected
+  result.
 - Alpha dogfood release: packaged CLI used locally on real `npx` commands.
 
 ## Non-Goals
@@ -425,7 +465,7 @@ Early work should be tracked as implementation issues, not themes:
 - Not a prompt-only convention; it is a wrapper with an enforceable decision.
 - Not dependent on paid or hosted audits for the local safety loop.
 - Not willing to execute when inspected bytes may differ from executed bytes, or
-  silently downgrade from failed inspection to raw `npx`.
+  silently downgrade failed inspection to raw `npx`.
 - Not broad private registry support beyond smoke support for common `.npmrc`
   workflows.
 
@@ -434,55 +474,27 @@ npm ecosystem problems, including publishing, revocation, name ownership,
 private distribution, and audit economics. `safe-npx` chooses the `npx`
 execution boundary first because it is narrow, painful, and immediately useful.
 
-## Deferred Platform Bet
-
-If the local CLI proves that evidence changes decisions, the project can grow
-into a broader trust layer for tiny executable packages and agent-invoked tools.
-
-Year one should leave hooks for later platform work through schema fields,
-fixtures, interview notes, and corpus studies, not by building the platform
-early.
-
-Promising later directions include hosted artifact pages, reusable audit records,
-third-party audit attestations, author-facing audit badges, release diffs,
-package-name dispute evidence, private executable buckets, agent instruction
-scanning, runtime sandbox profiles, and adjacent commands such as `pnpm dlx`,
-`yarn dlx`, and `bun x`.
-
-These ideas are real, but they should not dilute the year-one test:
-
-> Can `safe-npx` make the old `npx` yes/no prompt impossible to respect without
-> first asking, "with what evidence?"
-
 ## Design Principles
 
-- Evidence before execution; never execute when inspected bytes may differ from
-  executed bytes.
+- Evidence before execution; never execute if inspected bytes may differ.
 - Judge the exact version, not just the package name; never present integrity as
   safety.
-- Make package authority visible and treat maintainer or publisher compromise as
-  first-class threats.
+- Make authority visible and treat maintainer or publisher compromise seriously.
 - Prefer transparent facts over opaque scores; label heuristics as heuristics.
-- Stay useful without a hosted service and keep the execution delegator small.
-- Make human output readable, JSON output stable, and agents or CI stop when
-  uncertain.
-- Use reproducible fixtures and defer platform expansion until the local loop
-  works.
+- Stay useful without hosted services; keep the execution path small.
+- Make human output readable, JSON stable, and automation stop when uncertain.
+- Use reproducible fixtures; defer platform expansion until the local loop works.
 
 ## Open Questions
 
-- How much dependency graph resolution can be done honestly without rebuilding a
-  package manager?
-- Which signals are strong enough to block by default, and which should only
-  escalate to `ask`?
+- How much dependency graph resolution is honest without rebuilding npm?
+- Which signals block, ask, or only report?
 - What latency budget keeps developers from bypassing the tool?
-- What is the minimum useful authority model before sandboxing exists?
-- How should local approvals expire when publishers, maintainers, or package
-  metadata change?
+- What authority model is useful before sandboxing exists?
+- How should approvals expire when publisher or package metadata changes?
 - What should the minimum viable agent protocol include?
-- How should private package metadata be protected if a shared registry is used?
-- Which package-manager and agent integrations should come first after the npm
-  path works?
+- How is private package metadata protected if shared records exist?
+- Which package-manager and agent integrations come first after npm works?
 
-These questions should stay visible. The project should move quickly, but it
-should not pretend the trust model is simpler than it is.
+These questions should stay visible. The project should move quickly without
+pretending the trust model is simpler than it is.
