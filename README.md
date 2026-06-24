@@ -62,6 +62,7 @@ The first release should:
 - `docs/public-benefit-plan.md`: OSS, test corpus, and ecosystem benefit plan.
 - `docs/roadmap.md`: public roadmap.
 - `docs/one-year-vision.md`: one-year product and architecture vision.
+- `docs/milestones.md`: implementation milestones derived from the one-year vision.
 
 ## Safety Language
 
