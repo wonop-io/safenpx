@@ -1,7 +1,9 @@
 # One-Year Vision
 
-In one year, `safe-npx` should be the obvious better prompt for running package
-code from the internet.
+In one year, `safe-npx` should be the obvious safer wrapper for one-off npm
+package execution: it resolves the exact artifact, proves the inspected bytes
+are the bytes that run, and gives humans and agents enough evidence to avoid
+uninformed execution.
 
 `npx` is useful because it lets a developer run an npm package as a command
 without first setting up a project. That convenience is also the danger: a short
@@ -16,6 +18,9 @@ to the normal `npx` / `npm exec` path.
 The year-one promise is deliberately narrow:
 
 > `safe-npx` is a safety checkpoint before package code from the internet runs.
+
+`safe-npx` has authority over one decision only: whether this exact artifact may
+run through the intended `npx` / `npm exec` path now.
 
 Done well, this should make one-off executable npm packages more usable, not
 merely more frightening. Small CLIs in docs, READMEs, and agent skills should be
@@ -34,14 +39,11 @@ inspect, explain, ask, then run the intended command or stop.
   or `npm exec`, usually without adding it to a project.
 - **Artifact:** the exact compressed package download, or tarball, selected for
   execution.
-- **Integrity:** identity verification for bytes. It means the download matches
-  what the registry said, not that the code is harmless.
-- **Lifecycle script:** a package-defined install hook that npm may run before
-  the requested binary.
-- **Typo-squat:** a malicious package with a name that looks like a popular or
-  trusted package.
-- **Fail closed:** stop instead of guessing when evidence, resolution, or policy
-  is insufficient.
+- **Integrity:** identity verification for bytes; not proof of safety.
+- **Lifecycle script:** a package install hook npm may run before the requested
+  binary.
+- **Typo-squat:** a malicious package named to resemble a trusted package.
+- **Fail closed:** stop when evidence, resolution, or policy is insufficient.
 
 ## Before And After
 
@@ -127,8 +129,12 @@ Rust is appropriate because the CLI needs predictable startup, careful
 filesystem and process boundaries, and a small auditable binary with minimal
 runtime surprise.
 
-The central invariant is: the bytes inspected are the bytes executed. If
-`safe-npx` cannot prove that, it must not delegate execution.
+The central invariant is: the bytes inspected are the bytes executed. Year one
+must prove this with tests and implementation design, not aspiration.
+`safe-npx` must either execute from the verified tarball it inspected, delegate
+only through a mechanism that pins npm to that exact local artifact, or refuse.
+It must never inspect `name@latest` and then allow `npm exec` to resolve
+`latest` again.
 
 The product should be organized around three nouns:
 
@@ -150,9 +156,10 @@ before execution:
 - Package size, file count, and unusual package shape.
 - Binaries exposed by the package.
 - Lifecycle scripts such as `preinstall`, `install`, and `postinstall`.
-- Direct dependency count, plus an optional dependency summary only when it can
-  be produced without pretending to fully model npm resolution.
-- Similar package names and typo-squat signals.
+- Root package dependency declarations, clearly labeled as declarations rather
+  than a complete resolved dependency attack analysis.
+- Similar-name signals, clearly labeled as heuristics and used humbly; no typo
+  detector should imply intent or safety.
 - Whether this exact artifact has been seen or approved locally before.
 
 Facts and heuristics must be distinct. Integrity verification is a fact.
@@ -168,20 +175,22 @@ The default policy should separate showing evidence from interrupting execution.
 The report should be visible whenever useful; prompts should be reserved for
 signals strong enough to change behavior.
 
-- Deny on integrity mismatch.
-- Deny when registry metadata and downloaded artifact identity disagree.
-- Ask on lifecycle scripts.
-- Ask on very recent publishes, for example packages published within the last
-  24 hours.
-- Ask on first-seen exact artifacts in human mode.
-- Ask when a package name looks similar to a better-known package.
-- Ask on unusual package shape, high file count, large tarball, or unexpectedly
-  large dependency surface.
-- Stop by default for agent and CI modes when evidence is missing, unsupported,
-  or inconclusive unless policy explicitly allows continuation.
+| Signal | Human default | Agent / CI default | Notes |
+| --- | --- | --- | --- |
+| Integrity mismatch | deny | deny | Fact, not heuristic. |
+| Inspected artifact cannot be guaranteed as executed artifact | deny | deny | Core invariant. |
+| Unsupported package spec or resolver ambiguity | deny | deny | No raw `npx` fallback. |
+| Lifecycle script present | ask | stop | Especially `preinstall`, `install`, `postinstall`. |
+| Very recent publish, e.g. under 24 hours | ask | stop | Threshold should be configurable later. |
+| First-seen exact artifact | ask | stop unless policy allows | Cache key includes digest and command intent. |
+| Similar-name signal | ask | stop or ask-required | Heuristic only. |
+| Large or unusual root package shape | ask | stop or ask-required | Heuristic only. |
+| Missing optional heuristic data | allow or ask based on facts | stop only if required evidence is missing | Avoid pretending optional signals are facts. |
 
 The policy engine should explain decisions in terms of evidence, not vibes. If
 the tool cannot know enough, automation should stop instead of guessing.
+There is no magic safety score in V1. Reports may summarize risk, but decisions
+must cite concrete facts or explicitly labeled heuristics.
 
 ## Architectural Concepts
 
@@ -273,38 +282,38 @@ The delegator must preserve the artifact invariant. It should either execute the
 exact artifact inspected or fail with a clear explanation. It must never inspect
 one artifact and then let `npm exec` resolve a different one.
 
-### 7. CLI Contract V1
+### 7. Execution Mechanism Spike
+
+The first implementation milestone must decide and document how exact inspected
+bytes become exact executed bytes. Candidate approaches include executing from a
+verified extracted temp directory, constructing a local package spec from the
+verified tarball, or using an npm cache path only if npm can be forced not to
+re-resolve.
+
+Acceptance examples: pass when `safe-npx create-example@latest` resolves
+`3.2.1`, verifies digest `X`, and executes only files derived from digest `X`;
+fail closed when registry metadata changes, npm would re-resolve a tag/range/URL,
+or lifecycle scripts would run before approval.
+
+### 8. CLI Contract V1
 
 The first stable surface should be explicit enough for humans, agents, and CI:
+`safe-npx <pkg-spec> [-- <args>]` preserves forwarded package arguments;
+`safe-npx --json <pkg-spec> [-- <args>]` emits a machine-readable decision; no
+package code, lifecycle script, or binary runs before the decision; human mode
+may prompt; agent and CI modes stop by default when policy requires a question;
+exit codes distinguish successful execution, ask-required, deny, unsupported
+input, inspection error, and delegated execution failure. Approval cache entries
+attach to artifact digest, package coordinates, command intent, and policy
+version, and invalidate on digest, material metadata, maintainer or publisher
+context, policy, or expiry changes.
 
-- `safe-npx <pkg-spec> [-- <args>]` preserves forwarded package arguments.
-- `safe-npx --json <pkg-spec> [-- <args>]` emits a machine-readable decision.
-- Package code, lifecycle scripts, and package binaries never run before the
-  decision.
-- Human mode may prompt.
-- Agent and CI modes stop by default when policy requires a question.
-- Exit codes distinguish successful execution, ask-required, deny, unsupported
-  input, inspection error, and delegated execution failure.
-- Approval cache entries attach to artifact digest, package coordinates, command
-  intent, and policy version.
-- Approvals invalidate when the digest changes, package metadata materially
-  changes, maintainer or publisher context changes, policy changes, or an expiry
-  is reached.
-
-### 8. Agent Protocol
+### 9. Agent Protocol
 
 `safe-npx` should provide a stable agent-facing contract from the beginning.
 
-The protocol should include:
-
-- `artifact`
-- `command_intent`
-- `facts`
-- `heuristics`
-- `decision`
-- `reasons`
-- `required_next_action`
-- `exit_code`
+The protocol should include `artifact`, `command_intent`, `facts`, `heuristics`,
+`decision`, `reasons`, `required_next_action`, and `exit_code`.
 
 The first integration target is simple: an agent wants to run `npx`, calls
 `safe-npx --json`, and stops unless the policy result permits execution.
@@ -320,17 +329,20 @@ prints more data.
 
 Year-one validation should include:
 
-- A fixture corpus with benign CLI packages, lifecycle-script packages,
-  typo-squat examples, maintainer-takeover simulations, obfuscated packages,
-  fresh releases, and suspicious transitive dependencies.
-- Latency measurements on clean cache and warm cache runs, with targets tight
-  enough that developers do not bypass the tool.
-- Tests showing that package code is not executed during inspection.
-- Human decision tests: does the report help a developer choose stop, ask, or
-  continue?
-- Agent decision tests: does the JSON make an agent stop, explain, and ask?
-- False-positive review: which warnings are too noisy for real workflows?
-- False-negative review: which malicious or suspicious fixtures are missed?
+- Artifact invariant tests proving inspected digest equals executed digest.
+- Inspection safety tests proving package code and lifecycle scripts do not run
+  before approval.
+- Human decision studies showing whether developers stop, ask, or continue
+  differently after seeing the report.
+- Agent decision tests showing that JSON output causes agents to stop, explain,
+  request approval, or fail closed.
+- A fixture corpus with benign CLIs, lifecycle-script packages, fresh releases,
+  compromised-maintainer simulations, typo-like names, obfuscated root packages,
+  and dependency-declaration traps.
+- Pass/fail examples for every default policy rule.
+- Latency measurements for clean-cache and warm-cache runs.
+- False-positive review for prompt fatigue.
+- False-negative review for missed suspicious fixtures.
 
 If `safe-npx` is too slow or too noisy, users will bypass it. Speed and signal
 quality are product requirements, not polish.
@@ -341,18 +353,19 @@ The first 90 days should prove the local decision loop.
 
 ### 30 Days
 
-- Resolve common npm package specs to exact package versions.
+- Prove the core loop, not the whole product.
+- Resolve `name`, `name@version`, `name@latest`, and scoped package specs.
 - Download tarballs and verify integrity.
-- Extract root artifact evidence from registry metadata and `package.json`.
-- Print a human-readable report before execution.
-- Add a minimal hardcoded policy contract and block execution until approval or
-  policy allows it.
-- Add minimal `--json` output and exit codes for agents.
-- Add fixture tests for integrity mismatch, lifecycle scripts, recent publish,
-  and typo-like package names.
+- Decide the execution mechanism for exact inspected bytes.
 - Prove in tests that the inspected tarball digest is the executed artifact.
 - Prove in tests that lifecycle scripts do not run during inspection.
+- Extract root package evidence from registry metadata, tarball metadata, and
+  `package.json`.
+- Emit human report plus minimal JSON using the future schema shape.
+- Implement hardcoded policy v0 using the threshold table.
 - Make unsupported specs fail closed with useful messages.
+- Add fixture tests for integrity mismatch, lifecycle scripts, recent publish,
+  first-seen artifact, typo-like names, and resolver ambiguity.
 - Publish a terminal-first demo comparing the default `npx` prompt with
   `safe-npx`.
 
@@ -372,31 +385,49 @@ The first 90 days should prove the local decision loop.
 
 - Add release diff mode for previously seen package versions.
 - Add CI mode for fail-closed execution.
-- Add private registry smoke support for `.npmrc`-based workflows, without making
-  private registry productization central.
+- Add private registry smoke support for ordinary `.npmrc` authentication and
+  scoped registries, only enough to prove the local safety loop works there.
 - Publish JSON schema v0.1.
 - Publish the fixture corpus as a benchmark.
 - Publish latency, false-positive, and false-negative notes from real runs.
 - Recruit early adopters using `safe-npx` in human, agent, or CI workflows.
 - Validate that users or agents changed decisions because of evidence.
+- Treat release diff mode as a stretch unless the core artifact invariant,
+  policy table, JSON schema, and validation loop are already stable.
 - Decide whether a hosted audit registry is justified by repeated evidence reuse
   and user demand.
+
+## Issue-Shaped Milestones
+
+Early work should be tracked as implementation issues, not themes:
+
+- Resolver v0: supported spec matrix, unsupported failures, fixtures.
+- Artifact verifier v0: tarball download, integrity, digest identity.
+- Execution invariant spike: selected delegation mechanism and invariant tests.
+- Inspection safety v0: extract evidence without running package code.
+- Policy v0: threshold table with pass/fail examples.
+- JSON schema v0: artifact, command intent, facts, heuristics, decision,
+  reasons, required next action, and exit code.
+- Report v0: facts, heuristics, decision, and command authority.
+- Fixture manifest v0: package, digest, expected signals, expected policy result.
+- Alpha dogfood release: packaged CLI used locally on real `npx` commands.
 
 ## Non-Goals
 
 `safe-npx` should be explicit about what it is not:
 
-- It is not a replacement for npm, pnpm, Yarn, Bun, or package registries.
-- It does not guarantee that a package is safe.
-- It does not fully sandbox arbitrary JavaScript in year one.
-- It does not become a public audit authority before the local CLI proves useful.
-- It does not reimplement every package-manager resolution rule unless that is
-  required to make the execution decision honest.
-- It does not treat package names or maintainer reputation as enough.
-- It does not silently downgrade from failed inspection to raw `npx`.
-- It does not execute when inspected bytes may differ from executed bytes.
-- It does not depend on paid or hosted audits to make the local safety loop
-  useful.
+- Not a replacement for npm, pnpm, Yarn, Bun, or package registries.
+- Not proof that a package is safe, a magic safety score, or a containment system
+  when no sandbox is active.
+- Not a full transitive dependency attack analyzer in V1.
+- Not a public audit authority before the local CLI proves useful.
+- Not a reimplementation of every package-manager resolution rule.
+- Not a prompt-only convention; it is a wrapper with an enforceable decision.
+- Not dependent on paid or hosted audits for the local safety loop.
+- Not willing to execute when inspected bytes may differ from executed bytes, or
+  silently downgrade from failed inspection to raw `npx`.
+- Not broad private registry support beyond smoke support for common `.npmrc`
+  workflows.
 
 These constraints keep the project credible. The transcript points at broader
 npm ecosystem problems, including publishing, revocation, name ownership,
@@ -408,21 +439,15 @@ execution boundary first because it is narrow, painful, and immediately useful.
 If the local CLI proves that evidence changes decisions, the project can grow
 into a broader trust layer for tiny executable packages and agent-invoked tools.
 
-Promising later directions include:
+Year one should leave hooks for later platform work through schema fields,
+fixtures, interview notes, and corpus studies, not by building the platform
+early.
 
-- Hosted artifact report pages for exact package versions.
-- Reusable audit records with expiration and reviewer metadata.
-- Portable third-party audit attestations for exact package versions.
-- Author-facing audit badges for executable packages.
-- Release diff reports for package authors and users.
-- Package-name similarity and dispute evidence for registry operators.
-- Private registry and package-bucket policy support for internal executable
-  tools.
-- Agent instruction scanning for `npx` commands in docs, rules, and `SKILL.md`
-  files.
-- Runtime sandbox or permission profiles.
-- Support for adjacent commands such as `pnpm dlx`, `yarn dlx`, `bun x`, and
-  eventually other ecosystems.
+Promising later directions include hosted artifact pages, reusable audit records,
+third-party audit attestations, author-facing audit badges, release diffs,
+package-name dispute evidence, private executable buckets, agent instruction
+scanning, runtime sandbox profiles, and adjacent commands such as `pnpm dlx`,
+`yarn dlx`, and `bun x`.
 
 These ideas are real, but they should not dilute the year-one test:
 
@@ -431,22 +456,18 @@ These ideas are real, but they should not dilute the year-one test:
 
 ## Design Principles
 
-- Evidence before execution.
-- Never execute when inspected bytes may differ from executed bytes.
-- Never silently downgrade from inspection to raw `npx`.
-- Never present integrity as safety.
-- Judge the exact version being run, not just the package name.
-- Make package authority visible.
-- Treat maintainer and publisher compromise as first-class threats.
-- Prefer transparent facts over opaque scores.
-- Label heuristics as heuristics.
-- Stay useful without a hosted service.
-- Never require a hosted trust service for the local safety loop.
-- Keep the execution delegator small.
-- Make human output readable and JSON output stable.
-- Make agents and CI stop when uncertain.
-- Use reproducible fixtures for every important threat.
-- Defer platform expansion until the local decision loop works.
+- Evidence before execution; never execute when inspected bytes may differ from
+  executed bytes.
+- Judge the exact version, not just the package name; never present integrity as
+  safety.
+- Make package authority visible and treat maintainer or publisher compromise as
+  first-class threats.
+- Prefer transparent facts over opaque scores; label heuristics as heuristics.
+- Stay useful without a hosted service and keep the execution delegator small.
+- Make human output readable, JSON output stable, and agents or CI stop when
+  uncertain.
+- Use reproducible fixtures and defer platform expansion until the local loop
+  works.
 
 ## Open Questions
 
