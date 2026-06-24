@@ -4,10 +4,12 @@ package(default_visibility = ["//visibility:public"])
 
 RUST_DEPS = [
     "@crates//:anyhow",
+    "@crates//:base64",
     "@crates//:clap",
     "@crates//:reqwest",
     "@crates//:serde",
     "@crates//:serde_json",
+    "@crates//:sha2",
 ]
 
 rust_library(
@@ -16,6 +18,7 @@ rust_library(
         "src/contracts.rs",
         "src/download.rs",
         "src/fixtures.rs",
+        "src/integrity.rs",
         "src/inspect.rs",
         "src/lib.rs",
         "src/parser.rs",

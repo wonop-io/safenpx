@@ -14,6 +14,8 @@ mod download;
 mod fixtures;
 /// Inspect boundary and no-network harness.
 mod inspect;
+/// Root artifact integrity verifier.
+mod integrity;
 /// Package spec parser.
 mod parser;
 /// Public npm registry metadata client.
@@ -23,6 +25,7 @@ pub use contracts::*;
 pub use download::*;
 pub use fixtures::*;
 pub use inspect::*;
+pub use integrity::*;
 pub use parser::*;
 pub use registry::*;
 
