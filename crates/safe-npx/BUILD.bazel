@@ -23,6 +23,8 @@ rust_library(
         "src/lib.rs",
         "src/parser.rs",
         "src/registry.rs",
+        "src/report.rs",
+        "src/report_tests.rs",
         "src/resolver.rs",
     ],
     compile_data = [
