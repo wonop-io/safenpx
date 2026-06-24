@@ -21,11 +21,15 @@ This repository is the public scaffold for `safe-npx`, a Rust execution gate for
 
 - GitHub Issues and the `safe-npx Roadmap` GitHub Project are the online source of truth for work tracking.
 - `docs/roadmap.md` is the durable repo-backed narrative for the six-month plan.
+- Before starting any non-trivial work, check whether a GitHub issue already exists for it.
+- Do not start feature, bug, security, documentation, or planning work unless it is recorded in a GitHub issue first. Tiny repository chores may be done without a dedicated issue when they are clearly incidental.
+- Keep the relevant GitHub issue up to date as work progresses, especially when scope, blockers, acceptance criteria, or status changes.
 - Every non-trivial implementation change should start from a GitHub issue.
 - Pull requests should link issues with `Closes #123` or `Refs #123`.
 - Before starting work, inspect the issue with `just issue-view ISSUE=123` and move it into progress with `just issue-start ISSUE=123`.
 - After work is merged or no longer planned, update the issue with `just issue-done ISSUE=123` or close it manually with a clear reason.
 - Use `just roadmap-status` to get the current online issue/project snapshot before planning a work session.
+- Use conventional commits for every commit, for example `feat:`, `fix:`, `docs:`, `test:`, `refactor:`, or `chore:`.
 
 ## Build And Test Workflow
 
