@@ -1,57 +1,60 @@
 # One-Year Vision
 
-In one year, `safe-npx` should be the default evidence layer between developer
-intent and remote package execution.
+In one year, `safe-npx` should be the obvious better prompt for running package
+code from the internet.
 
-The project should not try to become a replacement for npm, pnpm, Yarn, Bun, or
-agent runtimes. Its role is narrower and more durable: resolve the exact code
-that is about to run, collect the evidence needed to judge it, apply local or
-organizational policy, and make the decision visible before execution.
+`npx` is useful because it lets a developer run an npm package as a command
+without first setting up a project. That convenience is also the danger: a short
+command copied from docs, a README, an issue, or an AI-generated answer can
+download and execute remote code with broad access to the local machine.
 
-The long-term bet is that package execution is becoming an agent boundary. Human
-developers already run `npx` commands from documentation and chat answers. Coding
-agents will do the same, faster and with less hesitation. The old prompt asks
-for trust at the moment when the user has the least context. `safe-npx` should
-turn that moment into a structured decision.
+The default prompt asks for trust before it gives useful evidence. `safe-npx`
+should change that moment. It should resolve the exact package version, verify
+the artifact, inspect what is about to run, apply policy, and only then delegate
+to the normal `npx` / `npm exec` path.
 
-## What It Should Become
+The year-one promise is deliberately narrow:
 
-`safe-npx` should become a small family of interoperable pieces:
+> `safe-npx` is a safety checkpoint before package code from the internet runs.
 
-- A Rust CLI that wraps `npx` and `npm exec` with evidence-before-execution.
-- A stable JSON decision format that agents, CI systems, and IDEs can consume.
-- A package-version audit registry that stores reusable evidence for exact npm
-  artifacts.
-- A policy engine that lets users and organizations decide what is allowed,
-  denied, or escalated.
-- A reproducible public test corpus covering malicious packages, compromised
-  maintainers, typo-squats, lifecycle scripts, and agent-driven blind execution.
-- Documentation for package managers, agent vendors, security teams, and open
-  source maintainers.
+It should not replace npm, prove that code is safe, or rebuild the JavaScript
+package ecosystem. It should make blind remote execution harder to justify and
+easier to replace with visible, repeatable evidence.
 
-The project should feel boring in the best way: predictable, auditable,
-scriptable, and hard to bypass accidentally.
+## Before And After
 
-## User Experience
+The current flow collapses install and execute, then asks for a yes/no decision
+with too little context:
 
-The core command should still feel like the workflow developers already know:
+```text
+npx create-example@latest
+Need to install the following packages:
+create-example@latest
+Ok to proceed? (y)
+```
+
+The `safe-npx` flow should preserve the convenience while making the decision
+substantive:
 
 ```text
 safe-npx create-example@latest
+
+Resolved: create-example@3.2.1
+Tarball: https://registry.npmjs.org/create-example/-/create-example-3.2.1.tgz
+Integrity: sha512 verified
+Published: 18 minutes ago
+Publisher: example-maintainer
+Package size: 412 KB, 86 files
+Binaries: create-example
+Lifecycle scripts: postinstall
+Dependencies: 87 declared nodes
+Known audit record: none
+
+Decision: ask
+Reason: very recent release with lifecycle script
+
+Proceed? [y/N]
 ```
-
-Before remote code runs, the user should see:
-
-- The exact package and version resolved from the requested spec.
-- Artifact integrity and whether it was verified.
-- Release age and freshness signals.
-- Maintainer and publisher signals.
-- Binaries and lifecycle scripts.
-- Dependency graph size and notable dependency findings.
-- Whether similar package names look suspicious.
-- Whether the package-version has an audit record.
-- A recommendation produced from transparent risk signals.
-- The policy decision: allow, ask, deny, or require override.
 
 For agents and automation, the same decision should be available as stable JSON:
 
@@ -59,169 +62,313 @@ For agents and automation, the same decision should be available as stable JSON:
 safe-npx --json create-example@latest
 ```
 
-The JSON output should be treated as a protocol. An agent should be able to stop
-before execution, explain the evidence to the user, ask for approval, or fail
-closed according to local policy.
+An agent should not need to scrape terminal text. It should receive structured
+artifact identity, evidence, policy status, and next-step requirements so it can
+stop, explain the risk, ask the user, or fail closed.
+
+## First Users
+
+The first users are not every npm user. The first users are people and systems
+standing at the remote-code execution boundary:
+
+- Developers copying `npx` commands from docs, READMEs, issues, and chat.
+- Coding agents asked to run `npx` commands from generated instructions.
+- Teams that want a lightweight policy gate before remote executable packages
+  run on developer machines or in CI.
+- Security-conscious maintainers who want their executable packages to be
+  inspectable before users run them.
+
+Adoption depends on speed and clarity. `safe-npx` should feel like the workflow
+developers already know, with a better decision point rather than a heavy
+security ritual.
+
+## Year-One Shape
+
+By the one-year mark, the project should be a focused, production-quality Rust
+CLI with a small set of reliable supporting pieces:
+
+- A wrapper for `npx` and `npm exec` that never runs package code before
+  inspection and policy evaluation.
+- A resolver and artifact verifier for common npm package specs.
+- A static evidence extractor for package metadata and tarball contents.
+- A policy engine that returns `allow`, `ask`, `deny`, or `override-required`.
+- Human-readable terminal output and stable JSON output.
+- A local cache for exact package-version evidence and previous approvals.
+- A reproducible fixture corpus for malicious packages, compromised maintainers,
+  typo-squats, lifecycle scripts, and agent-driven blind execution.
+- Documentation for humans, coding agents, and teams integrating the JSON
+  decision format.
+
+The product should be organized around three nouns:
+
+- **Artifact:** the exact bytes about to run.
+- **Evidence:** observable facts about those bytes and their provenance.
+- **Decision:** the policy outcome before execution.
+
+Everything else should earn its place by strengthening one of those three.
+
+## Evidence V1
+
+The first useful version should focus on evidence that changes the decision
+before execution:
+
+- Requested command and full command intent.
+- Resolved package name and exact version.
+- Registry, tarball URL, integrity metadata, and verification result.
+- Publish time, release age, publisher, maintainers, and repository metadata.
+- Package size, file count, and unusual package shape.
+- Binaries exposed by the package.
+- Lifecycle scripts such as `preinstall`, `install`, and `postinstall`.
+- Direct dependency count and high-level dependency graph summary.
+- Similar package names and typo-squat signals.
+- Whether this exact artifact has been seen or approved locally before.
+- Whether this exact artifact has a reusable audit record, if a registry is
+  configured.
+
+Facts and heuristics must be distinct. Integrity verification is a fact.
+Typo-squat similarity is a heuristic. The UI and JSON schema should not blur the
+difference.
+
+## Default Policy V1
+
+The default policy should be conservative without becoming noisy enough to
+ignore:
+
+- Ask on first-seen package versions.
+- Ask on lifecycle scripts.
+- Ask on very recent publishes, for example packages published within the last
+  24 hours.
+- Ask on unusual package shape, high file count, large tarball, or unexpectedly
+  large dependency surface.
+- Ask when a package name looks similar to a better-known package.
+- Deny on integrity mismatch.
+- Deny when registry metadata and downloaded artifact identity disagree.
+- Fail closed for agents and CI unless policy explicitly allows continuation.
+
+The policy engine should explain decisions in terms of evidence, not vibes. If
+the tool cannot know enough, automation should stop instead of guessing.
 
 ## Architectural Concepts
 
-The architecture should be built around exact artifacts, explicit evidence, and
-separable trust decisions.
+The architecture should stay small and auditable. The key boundary is between
+inspection and execution.
 
 ### 1. Resolver
 
-The resolver turns user intent into exact package coordinates.
+The resolver turns user intent into exact package coordinates without executing
+package code.
 
-It should understand package specs such as `name@latest`, scoped packages,
-version ranges, dist-tags, direct versions, and the eventual package-manager
-context. Its output should always identify an exact package version and the
-registry metadata used to reach that answer.
+Year-one support should start with:
 
-The resolver must not execute package code.
+- `name`
+- `name@version`
+- `name@latest`
+- scoped packages such as `@scope/name`
+
+Complex version ranges, workspace context, alternate package managers, peer
+dependency behavior, and lockfile-specific semantics should be delegated to
+existing package-manager behavior where possible rather than reimplemented
+prematurely.
 
 ### 2. Artifact Verifier
 
 The artifact verifier downloads package tarballs and checks that the bytes match
 the expected integrity metadata.
 
-The important unit is not "the package name" in general. It is a specific
-package version, resolved at a specific time, with a specific tarball digest. All
-later evidence should attach to that artifact identity.
+The important unit is not a package name in general. It is a specific package
+version, resolved at a specific time, with a specific tarball digest. All later
+evidence should attach to that artifact identity.
 
-### 3. Static Evidence Extractor
+### 3. Evidence Extractor
 
 The evidence extractor inspects package metadata and contents without running
 package code.
 
-It should collect signals such as:
+It should collect deterministic facts first: `package.json`, bins, lifecycle
+scripts, file count, package size, dependency declarations, and registry
+metadata. Heuristic signals such as obfuscation, generated code, typo-squat
+similarity, and unusual package shape should be labeled as heuristics.
 
-- `package.json` metadata.
-- Binaries exposed by the package.
-- Lifecycle scripts.
-- Files, size, and package shape.
-- Bundled or generated code indicators.
-- Repository, maintainer, and publisher metadata.
-- Dependency declarations.
-- Name similarity and typo-squat signals.
+### 4. Authority Model
 
-This layer should prefer deterministic checks over opaque scoring. When a signal
-is heuristic, it should say so.
+The hardest risk is not only "what package is this?" It is also "what authority
+will this process have if it runs?"
 
-### 4. Dependency Graph Builder
+Year one should make that authority visible even if full sandboxing is deferred:
 
-The dependency graph builder resolves what would enter the execution environment
-if the command continued.
+- Current working directory.
+- Environment-variable exposure.
+- Filesystem access implied by normal process execution.
+- Network access implied by normal process execution.
+- Whether the command is being run by a human, CI system, or coding agent.
 
-It should track integrity for dependency nodes wherever the package ecosystem
-exposes it. Findings should snowball through the graph: a risky package version
-or suspicious script in a transitive dependency should be visible at the root
-decision point.
-
-The dependency graph should be reusable across CLI output, JSON output, registry
-records, and test fixtures.
+Runtime permissions and sandbox profiles should remain an explicit research
+track. Without them, `safe-npx` is an evidence and policy gate, not a complete
+containment system.
 
 ### 5. Policy Engine
 
-The policy engine turns evidence into a decision.
-
-Its core decisions should be:
+The policy engine turns evidence into a decision:
 
 - `allow`: proceed without interaction.
 - `ask`: show evidence and require approval.
 - `deny`: stop execution.
 - `override-required`: allow only with an explicit, logged override.
 
-Policy should support both local developer workflows and organization-managed
-rules. Examples include denying packages published in the last hour, asking when
-lifecycle scripts are present, denying known typo-squats, or requiring an audit
-record for agent-driven execution.
+Policy should work locally first. Organization-managed policy can follow once
+the local loop is useful and trusted.
 
 ### 6. Execution Delegator
 
 The execution delegator runs the original command only after resolution,
-verification, evidence extraction, graph construction, and policy evaluation
-have completed.
+verification, evidence extraction, and policy evaluation have completed.
 
-This component should stay small. The safest design is to make everything before
-execution inspectable and everything after approval clearly delegated.
+This component should stay small. Everything before execution should be
+inspectable. Everything after approval should be clearly delegated to the normal
+package execution path.
 
-### 7. Audit Registry
+### 7. Agent Protocol
 
-The registry should store audit records for exact package versions, not broad
-package names.
+`safe-npx` should provide a stable agent-facing contract from the beginning.
 
-An audit record should include:
+The protocol should include:
 
-- Package name, version, registry, and tarball identity.
-- Integrity and artifact digests.
-- Evidence extraction timestamp and tool version.
-- Lifecycle scripts, binaries, dependency graph summary, and risk findings.
-- Links to inherited dependency findings.
-- Review status, reviewer identity where applicable, and expiration metadata.
+- Artifact identity.
+- Evidence grouped as facts and heuristics.
+- Policy decision.
+- Human-readable reasons.
+- Required next action.
+- Exit codes that let automation stop safely.
 
-The registry should make repeated decisions cheaper and more consistent. If a
-package version has already been inspected, future users and agents should be
-able to reuse the evidence instead of starting from zero.
+The first integration target is simple: an agent wants to run `npx`, calls
+`safe-npx --json`, and stops unless the policy result permits execution.
 
-The registry should be optional for local use. The CLI must remain useful without
-a hosted service.
+## Validation
 
-### 8. Agent Protocol
+The project should validate that it changes real decisions, not only that it
+prints more data.
 
-`safe-npx` should provide a stable agent-facing contract.
+Year-one validation should include:
 
-Agents should not need to scrape terminal text. They should receive structured
-evidence, policy status, and next-step requirements. The contract should make it
-easy for an agent to say: "I am about to run remote package code. Here is the
-artifact, here are the risk signals, and here is the decision I need from you."
+- A fixture corpus with benign CLI packages, lifecycle-script packages,
+  typo-squat examples, maintainer-takeover simulations, obfuscated packages,
+  fresh releases, and suspicious transitive dependencies.
+- Latency measurements on clean cache and warm cache runs.
+- Tests showing that package code is not executed during inspection.
+- Human decision tests: does the report help a developer choose stop, ask, or
+  continue?
+- Agent decision tests: does the JSON make an agent stop, explain, and ask?
+- False-positive review: which warnings are too noisy for real workflows?
 
-Over time, this protocol could be adopted by coding agents, package managers,
-IDEs, and CI systems.
+If `safe-npx` is too slow or too noisy, users will bypass it. Speed and signal
+quality are product requirements, not polish.
 
-## Year-One Product Shape
+## 30 / 60 / 90 Days
 
-By the one-year mark, the project should plausibly have:
+The first 90 days should prove the local decision loop.
 
-- A production-quality Rust CLI for npm package execution gating.
-- Support for exact root artifact verification and dependency graph evidence.
-- A documented JSON schema for agents.
-- A local policy file format.
-- A public alpha audit registry with a small but real package corpus.
-- A reproducible malicious-package fixture suite.
-- CI examples for fail-closed package execution.
-- Documentation for agent vendors and package manager maintainers.
-- A governance model for sponsors and contributors.
-- Clear language that it provides risk evidence, not safety guarantees.
+### 30 Days
 
-The success condition is not that every package becomes safe. The success
-condition is that blind remote execution becomes harder to justify and easier to
-replace with visible, repeatable evidence.
+- Resolve common npm package specs to exact package versions.
+- Download tarballs and verify integrity.
+- Extract root artifact evidence from registry metadata and `package.json`.
+- Print a human-readable report before execution.
+- Block execution until approval or policy allows it.
+- Add fixture tests for integrity mismatch, lifecycle scripts, recent publish,
+  and typo-like package names.
+- Publish a terminal-first demo comparing the default `npx` prompt with
+  `safe-npx`.
+
+### 60 Days
+
+- Add stable `--json` output and exit codes for agents.
+- Add a local policy file.
+- Add local cache records for exact artifact inspections and approvals.
+- Expand the fixture corpus.
+- Add agent integration docs showing fail-closed behavior.
+- Add dependency graph summary without pretending to fully reimplement npm.
+- Start feedback with agent-tool builders and package-security maintainers.
+
+### 90 Days
+
+- Add release diff mode for previously seen package versions.
+- Add CI mode for fail-closed execution.
+- Add private registry smoke support for `.npmrc`-based workflows.
+- Publish JSON schema v0.1.
+- Publish latency and false-positive notes from real runs.
+- Recruit early adopters using `safe-npx` in human, agent, or CI workflows.
+- Decide whether a hosted audit registry is justified by repeated evidence reuse
+  and user demand.
+
+## Non-Goals
+
+`safe-npx` should be explicit about what it is not:
+
+- It is not a replacement for npm, pnpm, Yarn, Bun, or package registries.
+- It does not guarantee that a package is safe.
+- It does not fully sandbox arbitrary JavaScript in year one.
+- It does not become a public audit authority before the local CLI proves useful.
+- It does not reimplement every package-manager resolution rule unless that is
+  required to make the execution decision honest.
+- It does not treat package names or maintainer reputation as enough.
+
+These constraints keep the project credible. The transcript points at broader
+npm ecosystem problems, including publishing, revocation, name ownership,
+private distribution, and audit economics. `safe-npx` chooses the `npx`
+execution boundary first because it is narrow, painful, and immediately useful.
+
+## Deferred Platform Bet
+
+If the local CLI proves that evidence changes decisions, the project can grow
+into a broader trust layer for tiny executable packages and agent-invoked tools.
+
+Promising later directions include:
+
+- Hosted artifact report pages for exact package versions.
+- Reusable audit records with expiration and reviewer metadata.
+- Author-facing audit badges for executable packages.
+- Release diff reports for package authors and users.
+- Package-name similarity and dispute evidence for registry operators.
+- Private registry policy support for internal executable tools.
+- Agent instruction scanning for `npx` commands in docs, rules, and skills.
+- Runtime sandbox or permission profiles.
+- Support for adjacent commands such as `pnpm dlx`, `yarn dlx`, `bun x`, and
+  eventually other ecosystems.
+
+These ideas are real, but they should not dilute the year-one test:
+
+> Can `safe-npx` make the old `npx` yes/no prompt impossible to respect without
+> first asking, "with what evidence?"
 
 ## Design Principles
 
-- Exact artifacts over package-name reputation.
 - Evidence before execution.
-- Transparent signals over black-box scoring.
-- Local usefulness without a hosted registry.
-- Registry acceleration when shared evidence exists.
-- Human-readable by default, machine-readable by design.
-- Fail-closed modes for agents and CI.
-- Reproducible fixtures for every important threat.
-- Small, auditable Rust components.
-- Clear separation between inspection, policy, and execution.
+- Judge the exact version being run, not just the package name.
+- Make package authority visible.
+- Treat maintainer and publisher compromise as first-class threats.
+- Prefer transparent facts over opaque scores.
+- Label heuristics as heuristics.
+- Stay useful without a hosted service.
+- Keep the execution delegator small.
+- Make human output readable and JSON output stable.
+- Make agents and CI stop when uncertain.
+- Use reproducible fixtures for every important threat.
+- Defer platform expansion until the local decision loop works.
 
 ## Open Questions
 
-- How much dependency graph resolution can be done without reimplementing a full
+- How much dependency graph resolution can be done honestly without rebuilding a
   package manager?
 - Which signals are strong enough to block by default, and which should only
   escalate to `ask`?
-- How should registry audit records expire as packages, maintainers, and threat
-  intelligence change?
+- What latency budget keeps developers from bypassing the tool?
+- What is the minimum useful authority model before sandboxing exists?
+- How should local approvals expire when publishers, maintainers, or package
+  metadata change?
 - What should the minimum viable agent protocol include?
-- How should private package metadata be protected when organizations use a
-  shared registry?
-- Which package-manager and agent integrations should come first?
+- How should private package metadata be protected if a shared registry is used?
+- Which package-manager and agent integrations should come first after the npm
+  path works?
 
 These questions should stay visible. The project should move quickly, but it
 should not pretend the trust model is simpler than it is.
