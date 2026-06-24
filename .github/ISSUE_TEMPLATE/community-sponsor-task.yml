@@ -1,0 +1,28 @@
+name: Community or sponsor task
+description: Track public roadmap, contributor, sponsor, or outreach work.
+title: "[Community]: "
+labels: ["type:community", "status:triage"]
+body:
+  - type: textarea
+    id: audience
+    attributes:
+      label: Audience
+      description: Contributors, package managers, agent vendors, AI labs, sponsors, or users.
+    validations:
+      required: true
+  - type: textarea
+    id: outcome
+    attributes:
+      label: Desired outcome
+    validations:
+      required: true
+  - type: textarea
+    id: deliverable
+    attributes:
+      label: Deliverable
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria

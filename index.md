@@ -12,6 +12,7 @@ This is the first AI-facing index for `safe-npx`. Keep it short and load child i
 - `docs/`: long-form product and security documentation.
 - `policies/index.md`: repository policy checks enforced by local commands and CI.
 - `reservations/`: npm and crates.io handle reservation packages.
+- `tools/github/index.md`: GitHub planning and Codex workflow helpers.
 - `README.md`: public project overview.
 - `AGENTS.md`: repository-specific working rules.
 
@@ -30,4 +31,4 @@ This is the first AI-facing index for `safe-npx`. Keep it short and load child i
 - `docs/demo-flow-spec.md`: demo flow for `safe-npx create-example@latest`.
 - `docs/technical-scope.typ`: one-page technical scope source.
 - `docs/public-benefit-plan.md`: OSS and ecosystem benefit plan.
-- `docs/roadmap.md`: public roadmap.
+- `docs/roadmap.md`: six-month public roadmap and planning operating model.

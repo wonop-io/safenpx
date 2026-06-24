@@ -1,0 +1,29 @@
+name: Security task
+description: Track threat-model, fixture, policy, or evidence work.
+title: "[Security]: "
+labels: ["type:security", "status:triage"]
+body:
+  - type: textarea
+    id: threat
+    attributes:
+      label: Threat or risk
+      description: Which threat does this address?
+      placeholder: Malicious packages, compromised maintainers, typo-squats, lifecycle scripts, or agent-driven blind execution.
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidence to collect
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+    validations:
+      required: true
+  - type: textarea
+    id: tests
+    attributes:
+      label: Test corpus impact

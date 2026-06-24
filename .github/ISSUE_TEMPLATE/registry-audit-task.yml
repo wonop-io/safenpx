@@ -1,0 +1,30 @@
+name: Registry audit task
+description: Track audit registry schema, data, or dependency snowballing work.
+title: "[Registry]: "
+labels: ["type:registry", "status:triage"]
+body:
+  - type: textarea
+    id: artifact
+    attributes:
+      label: Artifact or package-version scope
+      description: Which package, version, dependency edge, or audit record shape is involved?
+    validations:
+      required: true
+  - type: textarea
+    id: audit-trail
+    attributes:
+      label: Audit trail
+      description: What evidence needs to be stored or linked?
+    validations:
+      required: true
+  - type: textarea
+    id: dependency-impact
+    attributes:
+      label: Dependency impact
+      description: How should findings snowball to dependencies or dependents?
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+    validations:
+      required: true

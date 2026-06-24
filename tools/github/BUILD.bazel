@@ -1,0 +1,37 @@
+package(default_visibility = ["//visibility:public"])
+
+sh_binary(
+    name = "roadmap_status",
+    srcs = ["roadmap-status.sh"],
+)
+
+sh_binary(
+    name = "bootstrap_roadmap",
+    srcs = ["bootstrap-roadmap.sh"],
+    data = [":ensure_gh_auth"],
+)
+
+sh_binary(
+    name = "ensure_gh_auth",
+    srcs = ["ensure-gh-auth.sh"],
+)
+
+sh_binary(
+    name = "issue_list",
+    srcs = ["issue-list.sh"],
+)
+
+sh_binary(
+    name = "issue_view",
+    srcs = ["issue-view.sh"],
+)
+
+sh_binary(
+    name = "issue_start",
+    srcs = ["issue-start.sh"],
+)
+
+sh_binary(
+    name = "issue_done",
+    srcs = ["issue-done.sh"],
+)

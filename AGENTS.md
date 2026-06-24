@@ -14,7 +14,18 @@ This repository is the public scaffold for `safe-npx`, a Rust execution gate for
 - `docs/`: product scope, roadmap, threat model, demo spec, and public benefit plan.
 - `policies/`: repository policy checks wired through Bazel, `just`, and CI.
 - `reservations/`: package-handle reservation packages for npm and crates.io.
+- `tools/github/`: GitHub Issues, roadmap, and Codex planning helpers.
 - `BUILD.bazel` and `MODULE.bazel`: Bazel entrypoints and dependency wiring.
+
+## Planning Workflow
+
+- GitHub Issues and the `safe-npx Roadmap` GitHub Project are the online source of truth for work tracking.
+- `docs/roadmap.md` is the durable repo-backed narrative for the six-month plan.
+- Every non-trivial implementation change should start from a GitHub issue.
+- Pull requests should link issues with `Closes #123` or `Refs #123`.
+- Before starting work, inspect the issue with `just issue-view ISSUE=123` and move it into progress with `just issue-start ISSUE=123`.
+- After work is merged or no longer planned, update the issue with `just issue-done ISSUE=123` or close it manually with a clear reason.
+- Use `just roadmap-status` to get the current online issue/project snapshot before planning a work session.
 
 ## Build And Test Workflow
 
@@ -25,6 +36,7 @@ This repository is the public scaffold for `safe-npx`, a Rust execution gate for
 - Before handing off code changes, run the narrowest useful verification, normally:
   - `cargo fmt --check`
   - `cargo test`
+  - `cargo llvm-cov --workspace --all-targets --fail-under-lines 80`
   - `bazel test //...`
   - `git diff --check`
 

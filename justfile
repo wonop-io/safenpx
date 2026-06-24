@@ -24,6 +24,24 @@ bazel-test:
 build:
     bazel build //...
 
+roadmap-status:
+    tools/github/roadmap-status.sh
+
+roadmap-bootstrap:
+    tools/github/bootstrap-roadmap.sh
+
+issue-list:
+    tools/github/issue-list.sh
+
+issue-view ISSUE:
+    tools/github/issue-view.sh "{{ISSUE}}"
+
+issue-start ISSUE:
+    tools/github/issue-start.sh "{{ISSUE}}"
+
+issue-done ISSUE:
+    tools/github/issue-done.sh "{{ISSUE}}"
+
 test: check
 
 tests: test
