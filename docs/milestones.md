@@ -209,8 +209,8 @@ Acceptance criteria:
 - Registry metadata changes between inspection and execution fail closed.
 - Cache entries, generated shims, selected bins, dependencies, and lifecycle
   scripts cannot escape the verified closure.
-- If full dependency closure cannot be proven, execution refuses with a clear
-  unsupported-closure result.
+- If full dependency closure cannot be proven, execution returns
+  `execution_refused` with reason `unsupported_closure`.
 - If the executable subset is too narrow for useful alpha execution, the alpha
   ships as inspect-only rather than weakening the invariant.
 
@@ -283,9 +283,8 @@ Acceptance criteria:
 - Redacted display output remains separate from hashed or canonicalized identity
   fields used for cache keys and receipts.
 - The report plainly states what `safe-npx` catches and does not catch.
-- Provisional latency budgets are measured: cold public-package inspect under
-  five seconds, warm inspect under one second, and exact-version execute startup
-  overhead under two seconds.
+- Provisional inspect latency budgets are measured: cold public-package inspect
+  under five seconds and warm inspect under one second.
 
 ## M4: Provisional Policy V0 And Exit Semantics
 
@@ -358,6 +357,7 @@ Deliverables:
 - Alpha package distribution for dogfooding.
 - Install path documented for one package manager or binary release, with
   versioned upgrade and uninstall notes.
+- `--help`, shell completion, or manpage coverage for the alpha CLI surface.
 
 Acceptance criteria:
 
@@ -422,6 +422,7 @@ Deliverables:
   `SKILL.md`-style instructions with `safe-npx --json` approval flow.
 - Copy-paste replacement snippets for READMEs, agent skills, docs pages, and CI
   scripts.
+- Package-author README snippet for inspect-first replacement and `ask` handling.
 - Optional `safe-npx suggest` or `safe-npx doctor` concept for scanning docs,
   CI, and agent instruction files for raw `npx` commands.
 - Author guidance for safe-npx-friendly CLI packages: clear bins, stable
@@ -433,6 +434,8 @@ Deliverables:
 Acceptance criteria:
 
 - Agents can render an approval request without scraping terminal text.
+- Agent and CI docs explain how to request or pin supported `schema_version`
+  values.
 - CI can fail closed on deny, unsupported, inspection error, or ask-required.
 - Early adopters can install and run the alpha on real commands.
 - Feedback identifies whether hosted audit records, private registry support,

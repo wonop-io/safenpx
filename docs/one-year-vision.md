@@ -198,8 +198,9 @@ signals strong enough to change behavior.
 | Signal | Interactive default | Non-interactive default | Notes |
 | --- | --- | --- | --- |
 | Integrity mismatch | deny | deny | Fact, not heuristic. |
-| Execution closure cannot be verified | deny | deny | Core invariant. |
-| Unsupported package spec or resolver ambiguity | deny | deny | No raw `npx` fallback. |
+| Execution closure cannot be verified | execution_refused | execution_refused | Core invariant. |
+| Unsupported package spec | unsupported | unsupported | No raw `npx` fallback. |
+| Resolver ambiguity | deny | deny | Cannot prove artifact identity. |
 | Lifecycle script present in closure | ask | stop | Especially `preinstall`, `install`, `postinstall`. |
 | Very recent publish | ask | stop | Thresholds are experimental and fixture-backed. |
 | First-seen exact artifact | visible report | stop unless policy allows | Not automatically scary for humans. |

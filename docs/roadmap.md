@@ -16,8 +16,8 @@ It is also the repo-backed planning narrative for the next six months. GitHub Is
 ## Tracks
 
 - CLI: local execution gate, package resolution, terminal UX, JSON output.
-- Registry: audit repository, package-version evidence, dependency snowballing.
-- Policy: risk scoring, local policy files, allow/deny/ask decisions.
+- Artifact: npm metadata, tarball identity, integrity, and registry source.
+- Policy: local decisions, exit codes, JSON schema, and fail-closed behavior.
 - Security: threat model, malicious fixture corpus, supply-chain test cases.
 - Docs: contributor docs, package manager notes, agent vendor guidance.
 - Community: sponsorship, contributor onboarding, roadmap communication.
@@ -43,43 +43,41 @@ Goal: resolve a requested package spec to exact npm artifacts without executing 
 - Verify root artifact integrity.
 - Produce human and JSON evidence output.
 
-### M2: Dependency Graph And Evidence
+### M2: Execution Closure Spike
 
-Goal: show what would enter the execution environment before package code runs.
+Goal: prove whether inspected bytes can be the bytes that later execute.
 
-- Resolve dependency graph for the selected root artifact.
-- Track integrity where available for dependency nodes.
-- Identify bins, lifecycle scripts, bundled code, package age, and metadata anomalies.
-- Add fixture corpus for malicious packages, compromised maintainers, typo-squats, lifecycle scripts, and agent-driven blind execution.
+- Choose direct execution, pinned delegation, or inspect-only alpha.
+- Prove no package code runs during inspection.
+- Test tag moves, cache poisoning, lifecycle traps, bins, and shims.
+- Refuse any command shape that cannot preserve the inspected closure.
 
-### M3: Policy Engine And Agent UX
+### M3: Inspect Evidence And JSON
 
-Goal: make `safe-npx` useful for humans, agents, and CI.
+Goal: make inspect mode useful for humans, agents, and CI.
 
-- Implement allow/ask/deny policy decisions.
-- Support local policy configuration.
+- Extract root package evidence and label dependency declarations.
 - Stabilize JSON schema for agent consumption.
-- Add explainable risk signals and terminal output.
-- Support dry-run and fail-closed modes.
+- Add terminal output, redaction rules, and authority-context reporting.
+- Keep facts, heuristics, decisions, and reasons separate.
 
-### M4: Audit Registry Alpha
+### M4: Policy And Exit Semantics
 
-Goal: create a registry model for package-version audit trails and dependency snowballing.
+Goal: turn evidence into predictable local decisions.
 
-- Define audit record schema for package/version artifacts.
-- Store package evidence, integrity, timestamps, and risk findings.
-- Link findings across dependencies.
-- Design registry sync/update workflow.
-- Publish initial reproducible corpus and examples.
+- Implement the canonical decision enum and exit code contract.
+- Add interactive and non-interactive behavior.
+- Make unsupported specs and unverifiable execution fail closed.
+- Validate policy rules against fixtures.
 
-### M5: Public Beta And Ecosystem Adoption
+### M5: Execute Alpha And Adoption
 
-Goal: make the project ready for external contributors, sponsors, and early agent/package-manager integrations.
+Goal: run only verified execution closures, or ship inspect-only if proof fails.
 
-- Public beta release.
-- Contributor guide and governance.
-- Package manager and agent vendor docs.
-- Sponsor-facing roadmap and recognition model.
+- Execute exact-version packages only after M2 proves the path.
+- Add approval prompt, experimental approval cache, and compatibility matrix.
+- Package an alpha with install, upgrade, and uninstall docs.
+- Publish agent, CI, package-author, and contributor docs.
 - Demo flow for `safe-npx create-example@latest`.
 
 ## Project Fields
