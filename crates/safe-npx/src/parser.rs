@@ -229,10 +229,7 @@ fn is_local_path(spec: &str) -> bool {
 /// Return true when the input looks like a Windows drive path.
 fn is_windows_drive_path(spec: &str) -> bool {
     let bytes = spec.as_bytes();
-    bytes.len() >= 3
-        && bytes[0].is_ascii_alphabetic()
-        && bytes[1] == b':'
-        && (bytes[2] == b'\\' || bytes[2] == b'/')
+    bytes.len() >= 2 && bytes[0].is_ascii_alphabetic() && bytes[1] == b':'
 }
 
 /// Return true when the input is an npm alias spec.
@@ -330,6 +327,7 @@ mod tests {
             ("./local-package", UnsupportedSpecCategory::LocalPath),
             ("..\\local@1.2.3", UnsupportedSpecCategory::LocalPath),
             ("C:\\tmp\\pkg@1.2.3", UnsupportedSpecCategory::LocalPath),
+            ("C:tmp@1.2.3", UnsupportedSpecCategory::LocalPath),
             (
                 "https://example.test/pkg.tgz",
                 UnsupportedSpecCategory::TarballUrl,

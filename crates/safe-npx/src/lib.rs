@@ -29,12 +29,20 @@ pub struct Cli {
     #[arg(long, value_enum, default_value_t = Decision::Ask)]
     pub decision: Decision,
 
-    /// Package spec, for example create-example@1.2.3.
-    pub package_spec: String,
+    /// Package spec tokens, for example create-example@1.2.3.
+    #[arg(required = true, num_args = 1..)]
+    pub package_spec: Vec<String>,
 
     /// Arguments passed through to the package command after `--`.
     #[arg(last = true)]
     pub args: Vec<String>,
+}
+
+impl Cli {
+    /// Return the raw package spec string that should be classified.
+    pub fn raw_package_spec(&self) -> String {
+        self.package_spec.join(" ")
+    }
 }
 
 /// Policy decision selected before package execution.
@@ -51,24 +59,26 @@ pub enum Decision {
 
 /// Scaffold inspection report emitted for humans and agents.
 #[derive(Debug, PartialEq, Eq, Serialize)]
-pub struct Report<'a> {
+pub struct Report {
     /// Package spec requested by the caller.
-    pub package_spec: &'a str,
+    pub package_spec: String,
     /// Parsed command intent before registry or artifact access.
     pub intent: CommandIntent,
     /// Current recommendation from the policy gate.
     pub recommendation: Decision,
     /// Implementation status for the scaffold.
-    pub status: &'a str,
+    pub status: &'static str,
     /// Human-readable note explaining the current boundary.
-    pub note: &'a str,
+    pub note: &'static str,
 }
 
 /// Build the current scaffold report from parsed CLI arguments.
-pub fn build_report(cli: &Cli) -> Report<'_> {
+pub fn build_report(cli: &Cli) -> Report {
+    let raw_package_spec = cli.raw_package_spec();
+
     Report {
-        package_spec: &cli.package_spec,
-        intent: parse_command_intent(&cli.package_spec, cli.args.clone()),
+        package_spec: raw_package_spec.clone(),
+        intent: parse_command_intent(&raw_package_spec, cli.args.clone()),
         recommendation: cli.decision.clone(),
         status: "scaffold",
         note: "Resolution, integrity verification, evidence extraction, and fail-closed execution proof are not implemented yet.",
@@ -76,7 +86,7 @@ pub fn build_report(cli: &Cli) -> Report<'_> {
 }
 
 /// Render the report in the requested output format.
-pub fn render_report(cli: &Cli, report: &Report<'_>) -> anyhow::Result<String> {
+pub fn render_report(cli: &Cli, report: &Report) -> anyhow::Result<String> {
     if cli.json {
         return Ok(serde_json::to_string_pretty(report)?);
     }
@@ -100,7 +110,7 @@ pub fn render_report(cli: &Cli, report: &Report<'_>) -> anyhow::Result<String> {
 
     Ok(format!(
         "Package: {}\nStatus: scaffold\nRecommendation: {:?}\n{}\nThis Rust CLI scaffold does not execute package code yet.\nNext step: implement exact artifact resolution and fail closed when execution byte identity cannot be proven.\n",
-        cli.package_spec, cli.decision, intent_line
+        report.package_spec, cli.decision, intent_line
     ))
 }
 
@@ -130,7 +140,7 @@ mod tests {
     fn parses_default_ask_decision() {
         let cli = Cli::parse_from(["safe-npx", "create-example@1.2.3"]);
 
-        assert_eq!(cli.package_spec, "create-example@1.2.3");
+        assert_eq!(cli.raw_package_spec(), "create-example@1.2.3");
         assert_eq!(cli.decision, Decision::Ask);
         assert!(!cli.json);
     }
@@ -189,6 +199,17 @@ mod tests {
         assert!(output.contains("\"reason\": \"unsupported_spec\""));
         assert!(output.contains("\"category\": \"version_range\""));
         assert!(output.contains("\"downloaded\": false"));
+    }
+
+    /// Verifies multi-token unsupported forms reach parser classification.
+    #[test]
+    fn renders_json_for_multi_token_unsupported_specs() {
+        let cli = Cli::parse_from(["safe-npx", "--json", "npm", "exec", "create-example@1.2.3"]);
+        let output = run(&cli).expect("json rendering should succeed");
+
+        assert!(output.contains("\"package_spec\": \"npm exec create-example@1.2.3\""));
+        assert!(output.contains("\"state\": \"unsupported\""));
+        assert!(output.contains("\"category\": \"npm_exec_variant\""));
     }
 
     /// Verifies human-readable scaffold output for terminal use.
