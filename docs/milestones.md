@@ -28,6 +28,29 @@ command: the root tarball, selected binary, generated shim, installed
 dependencies, lifecycle scripts, package-manager helpers, and any resolved files
 needed before the command starts. Dependency declarations are not an execution
 closure; they are only evidence until the resolver proves and verifies them.
+For example, `create-foo@1.0.0` may run its own bin, an npm-generated shim, and
+dependency install scripts before the requested command starts; all of that is
+inside the closure. Verifying the root tarball is necessary, but not sufficient
+to execute.
+
+Fail closed means stop rather than falling back to raw `npx`. M3 is useful as a
+no-run inspection tool even if M2 proves that safe execution must remain
+inspect-only for the alpha.
+
+Decision vocabulary:
+
+- `allow`: evidence and policy permit the requested action.
+- `ask`: a human decision is required before execution.
+- `deny`: a known proof failure or unsafe condition was found.
+- `unsupported`: the command shape is outside the current implementation.
+- `inspection_error`: evidence could not be collected reliably.
+- `execution_refused`: inspection succeeded, but safe execution cannot be
+  proven for this package topology.
+
+Reason vocabulary starts with `integrity_mismatch`, `unsupported_spec`,
+`malformed_spec`, `registry_error`, `ambiguous_bin`, `missing_bin`,
+`lifecycle_script_present`, `unsupported_closure`, `metadata_changed`,
+`policy_requires_interaction`, and `non_interactive_stop`.
 
 ## Milestone Principles
 
@@ -39,6 +62,8 @@ closure; they are only evidence until the resolver proves and verifies them.
 - Start fixtures with the resolver instead of treating QA as a late phase.
 - Keep hosted audit records, broad private registry support, and alternate
   package managers out of the critical path.
+- Keep private/scoped registry work inspect-only until the public npm proof
+  path works.
 - Every milestone should leave behind tests, fixture evidence, and docs.
 
 ## Ownership Lanes
@@ -88,7 +113,8 @@ Supported v0 inputs:
 
 - `name@version`
 - `@scope/name@version`
-- Forwarded package arguments after `--`
+- Forwarded package arguments after `--`, for example
+  `safe-npx create-example@1.2.3 -- --template react`.
 
 Supported after the tag-race proof:
 
@@ -101,6 +127,10 @@ Explicitly unsupported in v0:
 - Version ranges other than `latest`.
 - Git URLs, local paths, tarball URLs, aliases, and multiple package specs.
 - `npm exec --package`, `-c`, and package-manager-specific variants.
+
+V0 intentionally does not support the common `npx name` form. Floating intent
+is useful, but exact versions are the first path where the artifact proof is
+small enough to make honest progress.
 
 Deliverables:
 
@@ -135,22 +165,35 @@ V0 stance:
 
 - Execute exact-version package specs first.
 - Run from a verified local closure controlled by `safe-npx`.
+- First runnable package class: exact version, one selected bin, no lifecycle
+  scripts, no dependency installation unless the dependency closure is fully
+  verified, no npm re-resolution, and macOS/Linux first.
 - Deny dependency lifecycle scripts by default until they are part of the
   verified closure.
 - Treat dependency declarations as evidence only unless dependencies are
   resolved, downloaded, integrity-checked, and included in the closure.
+- Prefer direct execution from the verified extracted artifact for the first
+  proof. Package-manager delegation comes later only if it preserves byte
+  identity.
 - Add `latest` only after tag-move and refetch races fail closed.
 
 Deliverables:
 
 - Execution-closure design note comparing direct execution, pinned local
   tarball execution, and package-manager delegation.
+- Decision record choosing `direct_extract`, `pinned_delegation`, or
+  `inspect_only_alpha` for first alpha execution. M5 may not start until M2
+  chooses one with fixture evidence.
 - No-package-code-ran canary harness using sentinel files, environment markers,
   and blocked network attempts.
 - Race matrix for resolution time versus execution time.
 - Bin selection rules and refusal behavior for ambiguous or missing bins.
+- Bin fixtures for single bin, multiple bins without explicit selection, missing
+  bin, scoped package bin, and forwarded args preserved exactly.
 - Registry and `.npmrc` precedence tests for public npm and scoped registry
-  smoke cases.
+  inspect-only smoke cases. npm may choose different registries based on scope,
+  directory, or config, so inspection and execution must agree on the same
+  registry source.
 - Closure fixtures for tag moves, cache poisoning, dependency lifecycle escape,
   generated shims, and selected binaries.
 
@@ -165,6 +208,8 @@ Acceptance criteria:
   scripts cannot escape the verified closure.
 - If full dependency closure cannot be proven, execution refuses with a clear
   unsupported-closure result.
+- If the executable subset is too narrow for useful alpha execution, the alpha
+  ships as inspect-only rather than weakening the invariant.
 
 ## M3: Inspect Evidence And JSON V0
 
@@ -180,14 +225,19 @@ Deliverables:
 - JSON fields for `schema_version`, `artifact`, `command_intent`,
   `source_context`, `authority_context`, `facts`, `heuristics`,
   `external_evidence`, `attestations`, `release_diff`, `decision`, `reasons`,
-  `required_next_action`, and `exit_code`.
+  `required_next_action`, `execution`, and `exit_code`.
+- Nullable reserved fields for `external_evidence`, `attestations`, and
+  `release_diff`; V0 must not implement hosted audits or release diffs.
+- Decision receipt fields for local/shareable records: artifact digest, command
+  intent, evidence summary, policy version, timestamp, and redaction metadata.
 - Privacy and redaction rules for reports and JSON.
 
 Evidence v0:
 
 - Requested command, selected bin, and forwarded args.
 - Source context: manual terminal, README/docs snippet, agent skill, CI, or
-  unknown.
+  unknown. In V0 this is caller-declared metadata or `unknown`, not magic
+  detection.
 - Resolved package identity and integrity verification.
 - Registry source and publish time.
 - Publisher, maintainers, repository, license, and provenance fields when
@@ -195,7 +245,18 @@ Evidence v0:
 - Package size, file count, binaries, and lifecycle scripts.
 - Dependency declarations, clearly labeled as declarations unless included in
   the verified execution closure.
-- Similar-name and unusual-shape heuristics as report-only signals.
+- Similar-name and unusual-shape heuristics, meaning warning signs that are not
+  proof, as report-only signals.
+
+JSON enums:
+
+- `decision`: `allow`, `ask`, `deny`, `unsupported`, `inspection_error`,
+  `execution_refused`.
+- `required_next_action`: `none`, `ask_user`, `retry_narrower_command`,
+  `inspect_only`, `explicit_override`, `unsupported`.
+- `mode`: `inspect`, `execute`.
+- `execution`: null in inspect mode; populated only when the command can run
+  from the verified closure without re-resolution.
 
 Acceptance criteria:
 
@@ -208,8 +269,16 @@ Acceptance criteria:
 - Authority context includes registry source, package scope, command intent, and
   cwd trust class, but uses categories and redacted names rather than raw secret
   values, full environment dumps, or home paths.
+- Authority context examples include local terminal versus CI, trusted project
+  directory versus temp directory, public npm versus scoped registry, and manual
+  user versus coding agent. It describes ambient process authority; it is not a
+  sandbox.
+- Redacted display output remains separate from hashed or canonicalized identity
+  fields used for cache keys and receipts.
 - The report plainly states what `safe-npx` catches and does not catch.
-- Latency is measured for cold cache and warm cache runs.
+- Provisional latency budgets are measured: cold public-package inspect under
+  five seconds, warm inspect under one second, and exact-version execute startup
+  overhead under two seconds.
 
 ## M4: Provisional Policy V0 And Exit Semantics
 
@@ -220,11 +289,15 @@ easy to change after fixture and dogfood feedback.
 
 Initial thresholds:
 
-- Recent publish warning: package version published within 24 hours.
+- Recent publish warning: package version published within 24 hours, because
+  very new releases have had less time for users, maintainers, or automated
+  systems to notice compromise.
 - Large package warning: tarball larger than 5 MB.
 - Large file-count warning: more than 500 files.
 - Lifecycle script: ask in interactive mode, stop in non-interactive mode.
 - Integrity mismatch, unsupported closure, or resolver ambiguity: deny.
+- Hard denials are proof failures. Heuristic warnings should not become denials
+  until validated.
 
 Deliverables:
 
@@ -245,6 +318,16 @@ Acceptance criteria:
 - Fixture output explains whether the user can retry with a narrower command,
   inspect-only mode, or an explicit override.
 
+Exit code mapping:
+
+- `0`: successful inspection or execution.
+- `10`: ask required.
+- `11`: denied.
+- `12`: unsupported input.
+- `13`: inspection error.
+- `14`: execution refused.
+- `15`: delegated execution failed.
+
 ## M5: Execute Mode Alpha
 
 Goal: safely run the intended command only after policy allows the verified
@@ -256,6 +339,8 @@ Deliverables:
 - Later support for `latest` after tag-race fixtures pass.
 - Approval prompt for interactive mode.
 - Explicit inspect-only behavior for `--json` unless an execute path is chosen.
+  Agent execution must carry the prior artifact identity forward instead of
+  triggering a second resolution.
 - Local approval cache keyed by artifact digest, command intent, policy version,
   registry source, authority context, and expiry.
 - Cache invalidation on digest, policy, registry source, authority context, or
@@ -272,7 +357,10 @@ Acceptance criteria:
   broader context.
 - `latest` cannot inspect one version and execute another.
 - Dogfood runs record latency, unsupported command shapes, policy decisions,
-  bypass pressure, and workaround behavior.
+  bypass pressure, and workaround behavior. Bypass pressure means how often
+  people feel tempted to call raw `npx` because `safe-npx` blocked them.
+- Approval cache starts experimental or disabled until authority-context golden
+  tests pass.
 
 ## M6: Expanded Fixture Corpus And Decision Validation
 
@@ -280,8 +368,11 @@ Goal: prove that evidence changes behavior without creating unacceptable noise.
 
 Deliverables:
 
-- Fixture manifest format with package, digest, execution closure, expected
-  evidence, expected policy result, and whether execution is allowed.
+- Fixture manifest format with package, version, registry, digest,
+  source_context, authority_context, command_intent, selected_bin,
+  forwarded_args, lifecycle-script flag, dependency-closure status, expected
+  evidence, expected reasons, expected exit code, and whether execution is
+  allowed.
 - Benign CLI fixtures.
 - Lifecycle-script fixtures.
 - Fresh-release fixtures.
@@ -291,6 +382,8 @@ Deliverables:
 - Dependency-declaration and dependency-confusion fixtures.
 - Cache/tag-move fixtures.
 - Real incident replay fixtures where legally and ethically usable.
+- Remote execution safety benchmark packaging so agent vendors, package
+  managers, and security tools can run the corpus.
 - Lightweight human and agent decision studies.
 
 Acceptance criteria:
@@ -303,6 +396,8 @@ Acceptance criteria:
   shape for cleaner reports.
 - Time-to-decision, false-positive, false-negative, and bypass-pressure notes
   are published.
+- Go/no-go recommendation decides whether the alpha remains inspect-only or
+  expands execute support.
 
 ## M7: Agent, CI, Author, And Early Adoption
 
@@ -313,8 +408,12 @@ Deliverables:
 
 - Agent integration guide for `safe-npx --json` inspect mode.
 - CI examples for fail-closed package execution.
+- Minimal agent-instruction examples that replace `npx` commands from
+  `SKILL.md`-style instructions with `safe-npx --json` approval flow.
 - Copy-paste replacement snippets for READMEs, agent skills, docs pages, and CI
   scripts.
+- Optional `safe-npx suggest` or `safe-npx doctor` concept for scanning docs,
+  CI, and agent instruction files for raw `npx` commands.
 - Author guidance for safe-npx-friendly CLI packages: clear bins, stable
   releases, minimal lifecycle scripts, provenance fields, and readable metadata.
 - Terminal-first demo comparing raw `npx` with `safe-npx`.
@@ -328,6 +427,8 @@ Acceptance criteria:
 - Early adopters can install and run the alpha on real commands.
 - Feedback identifies whether hosted audit records, private registry support,
   or release diffing are justified next.
+- The project is framed as agent-safety infrastructure: machine-readable stop
+  signs before agents execute internet code.
 
 ## Deferred Until Core Proof Works
 
@@ -340,6 +441,10 @@ These are real opportunities, but not core milestone blockers:
 - Broad private registry productization.
 - `pnpm dlx`, `yarn dlx`, `bun x`, and other ecosystems.
 - Runtime sandbox profiles.
+- Package author preview mode for local tarballs.
+- Shell/browser integrations that detect raw `npx` snippets.
+- Organization policy templates such as agent strict, developer balanced, CI
+  deny lifecycle, and private registry only.
 - Package-name dispute or registry governance workflows.
 
 ## Milestone Dependency Order
