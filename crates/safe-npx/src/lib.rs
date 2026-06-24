@@ -113,10 +113,12 @@ pub struct Report {
 /// Build the current scaffold report from parsed CLI arguments.
 pub fn build_report(cli: &Cli) -> Report {
     let raw_package_spec = cli.raw_package_spec();
+    let mut probe = CountingProbe::default();
+    let intent = inspect_raw_spec_with_probe(&raw_package_spec, cli.forwarded_args(), &mut probe);
 
     Report {
         package_spec: raw_package_spec.clone(),
-        intent: parse_command_intent(&raw_package_spec, cli.forwarded_args()),
+        intent,
         recommendation: cli.decision.clone(),
         status: "scaffold",
         note: "Resolution, integrity verification, evidence extraction, and fail-closed execution proof are not implemented yet.",

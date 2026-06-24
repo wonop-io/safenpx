@@ -1,0 +1,22 @@
+# safe-npx no-network fixture manifest
+# format: kind|raw_spec|registry_calls|tarball_calls
+malformed||0|0
+malformed|@scope/|0|0
+malformed|create-example@|0|0
+malformed|@/pkg@1.2.3|0|0
+unsupported|create-example|0|0
+unsupported|create-example@latest|0|0
+unsupported|create-example@^1.2.3|0|0
+unsupported|@scope/create-example@latest|0|0
+unsupported|@scope/create-example@^1.2.3|0|0
+unsupported|github:user/repo|0|0
+unsupported|./local-package|0|0
+unsupported|C:tmp@1.2.3|0|0
+unsupported|https://example.test/pkg.tgz|0|0
+unsupported|alias@npm:create-example@1.2.3|0|0
+unsupported|npm exec -- create-example@1.2.3|0|0
+unsupported|npm exec --package create-example@1.2.3|0|0
+unsupported|npm exec -c create-example@1.2.3|0|0
+unsupported|npx --yes create-example@1.2.3|0|0
+unsupported|npm-exec create-example@1.2.3|0|0
+unsupported|create-example@1.2.3 other@2.0.0|0|0

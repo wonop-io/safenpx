@@ -17,6 +17,7 @@ rust_library(
         "src/lib.rs",
         "src/parser.rs",
     ],
+    compile_data = ["fixtures/no-network-manifest.txt"],
     crate_name = "safe_npx",
     edition = "2021",
     deps = RUST_DEPS,
