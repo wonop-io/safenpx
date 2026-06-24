@@ -24,6 +24,10 @@ bazel-test:
 build:
     bazel build //...
 
+install-hooks:
+    git config core.hooksPath .githooks
+    @echo "Git hooks installed from .githooks"
+
 roadmap-status:
     tools/github/roadmap-status.sh
 

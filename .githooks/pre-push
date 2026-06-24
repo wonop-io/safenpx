@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo_root="$(git rev-parse --show-toplevel 2>/dev/null || true)"
+if [ -z "${repo_root}" ]; then
+  echo "pre-push: could not locate repository root" >&2
+  exit 2
+fi
+
+cd "${repo_root}"
+
+echo "pre-push: running repository policy preflight"
+./policies/check.sh
