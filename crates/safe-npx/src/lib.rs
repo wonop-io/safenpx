@@ -20,6 +20,8 @@ mod integrity;
 mod parser;
 /// Public npm registry metadata client.
 mod registry;
+/// End-to-end root artifact resolver.
+mod resolver;
 
 pub use contracts::*;
 pub use download::*;
@@ -28,6 +30,7 @@ pub use inspect::*;
 pub use integrity::*;
 pub use parser::*;
 pub use registry::*;
+pub use resolver::*;
 
 /// Command-line arguments accepted by the `safe-npx` binary.
 #[derive(Debug, Parser)]

@@ -23,6 +23,7 @@ rust_library(
         "src/lib.rs",
         "src/parser.rs",
         "src/registry.rs",
+        "src/resolver.rs",
     ],
     compile_data = [
         "fixtures/m1-fixture-manifest.txt",
