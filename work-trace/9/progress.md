@@ -12,3 +12,6 @@
 - Reworked the harness around an injectable inspection subject and local
   network probe, with a negative test that observes sentinel creation when an
   unsafe subject simulates package-code execution.
+- Focused re-review found the assertion helper trusted the inspector-returned
+  sentinel path; updated it to independently check the fixture-declared
+  sentinel and added a lying-inspector regression test.

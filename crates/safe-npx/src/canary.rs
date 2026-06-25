@@ -189,6 +189,7 @@ pub fn assert_canary_inspection_leaves_sentinels_absent_with(
     for fixture in fixtures {
         let inspection =
             inspect_canary_fixture_with(inspector, fixture, sentinel_root, &mut network_probe);
+        let expected_sentinel = fixture.sentinel_path(sentinel_root);
 
         if fixture.network_expectation == CanaryNetworkExpectation::DetectedWithoutExecution {
             assert!(
@@ -198,10 +199,10 @@ pub fn assert_canary_inspection_leaves_sentinels_absent_with(
             );
         }
         assert!(
-            inspection.sentinel_absent(),
+            !expected_sentinel.exists(),
             "{} created sentinel {:?}",
             fixture.id,
-            inspection.sentinel_path
+            expected_sentinel
         );
         inspections.push(inspection);
     }
@@ -373,6 +374,21 @@ mod tests {
         assert!(!inspection.sentinel_absent());
     }
 
+    #[test]
+    #[should_panic(expected = "root_binary created sentinel")]
+    /// Verifies the assertion helper checks fixture-declared sentinels itself.
+    fn harness_rejects_inspector_that_lies_about_sentinel_path() {
+        let workspace = CanaryTempRoot::new();
+        let fixtures = vec![fixture_by_kind(CanaryTrapKind::RootBinary)];
+        let mut inspector = LyingCanaryInspector;
+
+        assert_canary_inspection_leaves_sentinels_absent_with(
+            &mut inspector,
+            &fixtures,
+            workspace.path(),
+        );
+    }
+
     /// Assert inspection of one trap kind does not create its sentinel.
     fn assert_trap_kind_does_not_create_sentinel(kind: CanaryTrapKind) {
         let workspace = CanaryTempRoot::new();
@@ -411,6 +427,28 @@ mod tests {
                 fixture_id: fixture.id.clone(),
                 sentinel_path: sentinel,
                 network_attempt_detected: network_probe.blocked_attempt_for(fixture),
+            }
+        }
+    }
+
+    /// Test inspector that executes a payload but returns an unrelated path.
+    struct LyingCanaryInspector;
+
+    impl CanaryInspector for LyingCanaryInspector {
+        /// Write the real sentinel while returning a different absent path.
+        fn inspect_fixture(
+            &mut self,
+            fixture: &CanaryFixture,
+            sentinel_root: &Path,
+            _network_probe: &mut CanaryNetworkProbe,
+        ) -> CanaryInspection {
+            let sentinel = fixture.sentinel_path(sentinel_root);
+            fs::write(&sentinel, b"trap ran").expect("test sentinel should be writable");
+
+            CanaryInspection {
+                fixture_id: fixture.id.clone(),
+                sentinel_path: sentinel_root.join("unrelated-absent-sentinel"),
+                network_attempt_detected: false,
             }
         }
     }
