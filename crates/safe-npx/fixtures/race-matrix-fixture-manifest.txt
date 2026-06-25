@@ -3,7 +3,7 @@
 metadata_changed|metadata|direct_extract|metadata:sha512-old|metadata:sha512-new|execution_refused|metadata_changed|no_execution
 tag_moved_latest|tag|inspect_only_alpha|latest:create-example@1.2.3|latest:create-example@1.2.4|execution_refused|metadata_changed|no_execution
 cache_poisoned|cache|direct_extract|cache:sha512-good|cache:sha512-bad|execution_refused|cache_identity_mismatch|no_execution
-stale_cache_reuse|cache|direct_extract|cache:create-example@1.2.3:sha512-old|cache:create-example@1.2.3:sha512-old|execution_refused|cache_identity_mismatch|no_execution
+stale_cache_reuse|cache|direct_extract|registry:create-example@1.2.3:sha512-current|cache:create-example@1.2.3:sha512-old|execution_refused|cache_identity_mismatch|no_execution
 tarball_identity_mismatch|tarball|direct_extract|tarball:sha512-registry|tarball:sha512-downloaded|deny|integrity_mismatch|no_execution
 pinned_delegation_unproven|delegation|pinned_delegation|artifact:sha512-inspected|delegate:unknown|execution_refused|unsupported_closure|no_execution
 exact_version_pinned|exact_version|direct_extract|create-example@1.2.3:sha512-fixed|create-example@1.2.3:sha512-fixed|ask|interactive_approval_required|no_execution

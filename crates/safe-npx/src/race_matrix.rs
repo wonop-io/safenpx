@@ -111,15 +111,18 @@ pub fn race_fixture_outcome_is_consistent(fixture: &RaceMatrixFixture) -> bool {
     match (&fixture.race_class, &fixture.expected_reason) {
         (RaceClass::Metadata | RaceClass::Tag, RaceReason::M2(M2Reason::MetadataChanged)) => {
             fixture.expected_decision == ClosureDecision::ExecutionRefused
+                && fixture.has_identity_drift()
         }
         (RaceClass::Cache, RaceReason::M2(M2Reason::CacheIdentityMismatch)) => {
             fixture.expected_decision == ClosureDecision::ExecutionRefused
+                && fixture.has_identity_drift()
         }
         (RaceClass::Tarball, RaceReason::M1(M1Reason::IntegrityMismatch)) => {
-            fixture.expected_decision == ClosureDecision::Deny
+            fixture.expected_decision == ClosureDecision::Deny && fixture.has_identity_drift()
         }
         (RaceClass::Delegation, RaceReason::M2(M2Reason::UnsupportedClosure)) => {
             fixture.expected_decision == ClosureDecision::ExecutionRefused
+                && fixture.has_identity_drift()
         }
         (RaceClass::ExactVersion, RaceReason::M2(M2Reason::InteractiveApprovalRequired)) => {
             fixture.expected_decision == ClosureDecision::Ask
@@ -292,6 +295,7 @@ mod tests {
                 RaceReason::M2(M2Reason::CacheIdentityMismatch)
             );
             assert_eq!(fixture.expected_decision, ClosureDecision::ExecutionRefused);
+            assert!(fixture.has_identity_drift(), "{fixture_id}");
         }
     }
 
