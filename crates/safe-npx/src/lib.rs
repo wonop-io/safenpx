@@ -37,6 +37,8 @@ mod m2_fixtures;
 mod package_metadata;
 /// Package spec parser.
 mod parser;
+/// Deterministic M2 resolution-to-execution race fixtures.
+mod race_matrix;
 /// Public npm registry metadata client.
 mod registry;
 /// Deterministic M2 registry precedence and agreement checks.
@@ -62,6 +64,7 @@ pub use inspect::*;
 pub use integrity::*;
 pub use m2_fixtures::*;
 pub use parser::*;
+pub use race_matrix::*;
 pub use registry::*;
 pub use registry_precedence::*;
 pub use report::*;
