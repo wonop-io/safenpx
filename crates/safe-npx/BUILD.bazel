@@ -17,6 +17,7 @@ RUST_DEPS = [
 rust_library(
     name = "safe-npx-lib",
     srcs = [
+        "src/bin_selection.rs",
         "src/canary.rs",
         "src/closure.rs",
         "src/closure_blockers.rs",

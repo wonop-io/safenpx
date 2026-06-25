@@ -6,6 +6,8 @@
 use clap::{Parser, ValueEnum};
 use serde::Serialize;
 
+/// Deterministic M2 package bin selection.
+mod bin_selection;
 /// M2 no-package-code-ran canary harness.
 mod canary;
 /// M2 execution closure evidence contracts.
@@ -45,6 +47,7 @@ mod report_tests;
 /// End-to-end root artifact resolver.
 mod resolver;
 
+pub use bin_selection::*;
 pub use canary::*;
 pub use closure::*;
 pub use closure_blockers::*;
