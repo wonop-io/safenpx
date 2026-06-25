@@ -1,6 +1,6 @@
 //! Public npm registry metadata resolution for exact-version package specs.
 
-use crate::{M1Reason, PackageSpec, RegistrySource, ResolvedPackage};
+use crate::{normalize_registry_url, M1Reason, PackageSpec, RegistrySource, ResolvedPackage};
 use serde_json::Value;
 
 /// Public npm registry base URL used by M1.
@@ -77,20 +77,31 @@ impl RegistryResolutionError {
 /// Client that resolves exact-version package specs through registry metadata.
 #[derive(Clone, Debug)]
 pub struct NpmMetadataClient<T> {
-    registry_url: String,
+    registry: RegistrySource,
     transport: T,
 }
 
 impl<T: RegistryTransport> NpmMetadataClient<T> {
     /// Create a client for the public npm registry.
     pub fn public(transport: T) -> Self {
-        Self::new(PUBLIC_NPM_REGISTRY_URL, transport)
+        Self::new(crate::PUBLIC_NPM_REGISTRY_URL, transport)
     }
 
     /// Create a client for a registry base URL.
     pub fn new(registry_url: impl Into<String>, transport: T) -> Self {
         Self {
-            registry_url: normalize_registry_url(registry_url.into()),
+            registry: RegistrySource {
+                url: normalize_registry_url(&registry_url.into()),
+                scope: None,
+            },
+            transport,
+        }
+    }
+
+    /// Create a client from an already selected registry source.
+    pub fn from_registry_source(registry: &RegistrySource, transport: T) -> Self {
+        Self {
+            registry: registry.clone(),
             transport,
         }
     }
@@ -99,7 +110,7 @@ impl<T: RegistryTransport> NpmMetadataClient<T> {
     pub fn metadata_url(&self, package_spec: &PackageSpec) -> String {
         format!(
             "{}{}",
-            self.registry_url,
+            self.registry.url,
             encode_package_name(&package_spec.name)
         )
     }
@@ -115,7 +126,7 @@ impl<T: RegistryTransport> NpmMetadataClient<T> {
         })?;
 
         match response.status {
-            200..=299 => resolve_from_body(package_spec, &self.registry_url, &response.body),
+            200..=299 => resolve_from_body(package_spec, &self.registry, &response.body),
             404 => Err(RegistryResolutionError::new(
                 M1Reason::MissingPackage,
                 "package metadata was not found",
@@ -126,15 +137,6 @@ impl<T: RegistryTransport> NpmMetadataClient<T> {
             )),
         }
     }
-}
-
-/// Normalize a registry URL so path joins are deterministic.
-fn normalize_registry_url(mut registry_url: String) -> String {
-    if !registry_url.ends_with('/') {
-        registry_url.push('/');
-    }
-
-    registry_url
 }
 
 /// Percent-encode the npm package name path segment.
@@ -152,7 +154,7 @@ fn encode_package_name(name: &str) -> String {
 /// Resolve the requested exact version from a registry JSON body.
 fn resolve_from_body(
     package_spec: &PackageSpec,
-    registry_url: &str,
+    registry: &RegistrySource,
     body: &str,
 ) -> Result<ResolvedPackage, RegistryResolutionError> {
     let metadata = serde_json::from_str::<Value>(body).map_err(|error| {
@@ -184,10 +186,7 @@ fn resolve_from_body(
     Ok(ResolvedPackage {
         name: package_spec.name.clone(),
         version: version.to_string(),
-        registry: RegistrySource {
-            url: registry_url.to_string(),
-            scope: package_spec.scope.clone(),
-        },
+        registry: registry.clone(),
         tarball_url,
         integrity,
     })
@@ -298,6 +297,33 @@ mod tests {
             "https://registry.npmjs.org/create-example/-/create-example-1.2.3.tgz"
         );
         assert_eq!(resolved.integrity, "sha512-fixture");
+    }
+
+    #[test]
+    /// Verifies resolved metadata preserves the selected scoped registry source.
+    fn resolves_with_selected_registry_source() {
+        let package_spec = PackageSpec::exact(
+            "@scope/create-example@1.2.3",
+            "@scope/create-example",
+            "1.2.3",
+            Some("scope".to_string()),
+        );
+        let registry = RegistrySource {
+            url: "https://scope.registry.test/npm/".to_string(),
+            scope: Some("scope".to_string()),
+        };
+        let transport = StubTransport::new(vec![Ok(response(200, scoped_successful_body()))]);
+        let client = NpmMetadataClient::from_registry_source(&registry, transport);
+
+        let resolved = client
+            .resolve_exact(&package_spec)
+            .expect("stubbed scoped metadata should resolve");
+
+        assert_eq!(resolved.registry, registry);
+        assert_eq!(
+            resolved.tarball_url,
+            "https://scope.registry.test/npm/@scope/create-example/-/create-example-1.2.3.tgz"
+        );
     }
 
     #[test]
@@ -428,5 +454,20 @@ mod tests {
         let error = result.expect_err("resolution should fail");
 
         assert_eq!(error.reason, expected_reason);
+    }
+
+    /// Build a successful scoped registry metadata body.
+    fn scoped_successful_body() -> &'static str {
+        r#"{
+            "versions": {
+                "1.2.3": {
+                    "version": "1.2.3",
+                    "dist": {
+                        "tarball": "https://scope.registry.test/npm/@scope/create-example/-/create-example-1.2.3.tgz",
+                        "integrity": "sha512-fixture"
+                    }
+                }
+            }
+        }"#
     }
 }

@@ -32,6 +32,7 @@ rust_library(
         "src/package_metadata.rs",
         "src/parser.rs",
         "src/registry.rs",
+        "src/registry_precedence.rs",
         "src/report.rs",
         "src/report_tests.rs",
         "src/resolver.rs",

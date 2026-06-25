@@ -35,6 +35,8 @@ mod package_metadata;
 mod parser;
 /// Public npm registry metadata client.
 mod registry;
+/// Deterministic M2 registry precedence and agreement checks.
+mod registry_precedence;
 /// Human and JSON report rendering.
 mod report;
 #[cfg(test)]
@@ -55,6 +57,7 @@ pub use integrity::*;
 pub use m2_fixtures::*;
 pub use parser::*;
 pub use registry::*;
+pub use registry_precedence::*;
 pub use report::*;
 pub use resolver::*;
 
