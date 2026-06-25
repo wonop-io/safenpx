@@ -6,10 +6,12 @@ RUST_DEPS = [
     "@crates//:anyhow",
     "@crates//:base64",
     "@crates//:clap",
+    "@crates//:flate2",
     "@crates//:reqwest",
     "@crates//:serde",
     "@crates//:serde_json",
     "@crates//:sha2",
+    "@crates//:tar",
 ]
 
 rust_library(
@@ -19,6 +21,8 @@ rust_library(
         "src/closure.rs",
         "src/contracts.rs",
         "src/download.rs",
+        "src/extraction.rs",
+        "src/extraction_tests.rs",
         "src/fixtures.rs",
         "src/integrity.rs",
         "src/inspect.rs",

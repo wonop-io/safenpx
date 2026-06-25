@@ -14,6 +14,11 @@ mod closure;
 mod contracts;
 /// Root tarball byte downloader.
 mod download;
+/// Safe static extraction of verified root artifacts.
+mod extraction;
+#[cfg(test)]
+/// Tests for safe static extraction.
+mod extraction_tests;
 /// M1 fixture manifest support.
 mod fixtures;
 /// Inspect boundary and no-network harness.
@@ -36,6 +41,7 @@ pub use canary::*;
 pub use closure::*;
 pub use contracts::*;
 pub use download::*;
+pub use extraction::*;
 pub use fixtures::*;
 pub use inspect::*;
 pub use integrity::*;
