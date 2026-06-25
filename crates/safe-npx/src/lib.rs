@@ -6,6 +6,8 @@
 use clap::{Parser, ValueEnum};
 use serde::Serialize;
 
+/// M2 execution closure evidence contracts.
+mod closure;
 /// Shared M1 data contracts.
 mod contracts;
 /// Root tarball byte downloader.
@@ -28,6 +30,7 @@ mod report_tests;
 /// End-to-end root artifact resolver.
 mod resolver;
 
+pub use closure::*;
 pub use contracts::*;
 pub use download::*;
 pub use fixtures::*;

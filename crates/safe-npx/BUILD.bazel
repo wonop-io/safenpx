@@ -15,6 +15,7 @@ RUST_DEPS = [
 rust_library(
     name = "safe-npx-lib",
     srcs = [
+        "src/closure.rs",
         "src/contracts.rs",
         "src/download.rs",
         "src/fixtures.rs",
