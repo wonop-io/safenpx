@@ -6,3 +6,6 @@
   override, scoped `.npmrc`, unscoped `.npmrc`, and public npm fallback.
 - Added registry agreement checks that fail closed with
   `registry_precedence_mismatch`.
+- Ran prior-commit red/blue/judge review. Red team found scoped `.npmrc`
+  precedence over env defaults and duplicate-key last-write behavior gaps;
+  updated the model and fixture tests.

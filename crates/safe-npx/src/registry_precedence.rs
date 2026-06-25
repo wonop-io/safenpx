@@ -29,17 +29,6 @@ pub fn resolve_registry_source(
     package_spec: &PackageSpec,
     config: &NpmRegistryConfig,
 ) -> RegistrySource {
-    if let Some(url) = config
-        .env_registry
-        .as_deref()
-        .filter(|url| !url.trim().is_empty())
-    {
-        return RegistrySource {
-            url: normalize_registry_url(url),
-            scope: package_spec.scope.clone(),
-        };
-    }
-
     let npmrc = config.local_npmrc.as_deref().unwrap_or_default();
     if let Some(scope) = &package_spec.scope {
         if let Some(url) = scoped_registry(npmrc, scope) {
@@ -48,6 +37,17 @@ pub fn resolve_registry_source(
                 scope: Some(scope.clone()),
             };
         }
+    }
+
+    if let Some(url) = config
+        .env_registry
+        .as_deref()
+        .filter(|url| !url.trim().is_empty())
+    {
+        return RegistrySource {
+            url: normalize_registry_url(url),
+            scope: None,
+        };
     }
 
     if let Some(url) = unscoped_registry(npmrc) {
@@ -99,13 +99,8 @@ fn npmrc_value(npmrc: &str, key: &str) -> Option<String> {
     npmrc
         .lines()
         .filter_map(parse_npmrc_line)
-        .find_map(|(name, value)| {
-            if name == key {
-                Some(value.to_string())
-            } else {
-                None
-            }
-        })
+        .filter_map(|(name, value)| (name == key).then(|| value.to_string()))
+        .last()
 }
 
 fn parse_npmrc_line(line: &str) -> Option<(&str, &str)> {
@@ -169,8 +164,8 @@ mod tests {
     }
 
     #[test]
-    /// Verifies env registry takes precedence over local `.npmrc`.
-    fn env_registry_override_wins() {
+    /// Verifies scoped `.npmrc` entries win over env default registry.
+    fn scoped_registry_wins_over_env_default() {
         let source = resolve_registry_source(
             &scoped_spec(),
             &NpmRegistryConfig {
@@ -179,8 +174,23 @@ mod tests {
             },
         );
 
-        assert_eq!(source.url, "https://env.registry.test/");
+        assert_eq!(source.url, "https://scope.registry.test/");
         assert_eq!(source.scope.as_deref(), Some("scope"));
+    }
+
+    #[test]
+    /// Verifies env registry overrides unscoped local defaults.
+    fn env_registry_override_wins_for_unscoped_default() {
+        let source = resolve_registry_source(
+            &unscoped_spec(),
+            &NpmRegistryConfig {
+                env_registry: Some("https://env.registry.test".to_string()),
+                local_npmrc: Some("registry=https://fixture.registry.test".to_string()),
+            },
+        );
+
+        assert_eq!(source.url, "https://env.registry.test/");
+        assert_eq!(source.scope, None);
     }
 
     #[test]
@@ -230,6 +240,24 @@ mod tests {
         );
 
         assert_eq!(source.url, "https://fixture.registry.test/");
+    }
+
+    #[test]
+    /// Verifies duplicate local `.npmrc` keys use the later value.
+    fn later_duplicate_npmrc_key_wins() {
+        let source = resolve_registry_source(
+            &scoped_spec(),
+            &NpmRegistryConfig {
+                env_registry: None,
+                local_npmrc: Some(
+                    "@scope:registry=https://old.registry.test\n@scope:registry=https://new.registry.test"
+                        .to_string(),
+                ),
+            },
+        );
+
+        assert_eq!(source.url, "https://new.registry.test/");
+        assert_eq!(source.scope.as_deref(), Some("scope"));
     }
 
     fn unscoped_spec() -> PackageSpec {
