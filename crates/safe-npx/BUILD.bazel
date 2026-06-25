@@ -39,6 +39,7 @@ rust_library(
         "src/resolver.rs",
     ],
     compile_data = [
+        "fixtures/bin-selection-fixture-manifest.txt",
         "fixtures/canary-fixture-manifest.txt",
         "fixtures/m1-fixture-manifest.txt",
         "fixtures/m2-closure-fixture-manifest.txt",

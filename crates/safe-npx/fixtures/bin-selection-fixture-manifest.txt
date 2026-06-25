@@ -1,0 +1,9 @@
+# safe-npx M2 bin-selection fixture manifest
+# format: id|package_name|bins|forwarded_args_json|expected_decision|expected_reason|expected_bin_name|expected_bin_path
+single_bin|create-example|create-example=bin/create.js|[]|allow|none|create-example|bin/create.js
+ambiguous_bin|create-example|create-example=bin/create.js,other-example=bin/other.js|[]|unsupported|ambiguous_bin||
+missing_bin|create-example||[]|unsupported|missing_bin||
+scoped_bin|@scope/create-example|create-example=cli.js|[]|allow|none|create-example|cli.js
+name_mismatch|create-example|create-other=bin/create.js|[]|allow|none|create-other|bin/create.js
+forwarded_args|create-example|create-example=bin/create.js|["--flag","value with spaces","--flag",""]|allow|none|create-example|bin/create.js
+

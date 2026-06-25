@@ -5,3 +5,4 @@
 - Added a static bin-selection contract for single-bin selection, ambiguous-bin
   refusal, missing-bin refusal, scoped bin metadata, mismatch evidence, and
   exact forwarded-argument JSON preservation.
+- Added a checked-in bin-selection fixture manifest consumed by unit tests.

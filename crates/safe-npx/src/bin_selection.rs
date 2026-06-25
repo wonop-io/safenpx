@@ -88,6 +88,9 @@ mod tests {
     use std::collections::BTreeMap;
     use std::path::PathBuf;
 
+    const BIN_SELECTION_FIXTURE_MANIFEST: &str =
+        include_str!("../fixtures/bin-selection-fixture-manifest.txt");
+
     #[test]
     /// Verifies a package with one bin selects that bin deterministically.
     fn single_bin_package_selection_is_deterministic() {
@@ -174,16 +177,156 @@ mod tests {
         );
     }
 
+    #[test]
+    /// Verifies the checked-in bin-selection fixture manifest drives selection.
+    fn bin_selection_fixture_manifest_is_consumed() {
+        let fixtures = parse_bin_selection_fixture_manifest(BIN_SELECTION_FIXTURE_MANIFEST);
+
+        assert_eq!(fixtures.len(), 6);
+        for fixture in fixtures {
+            let mut metadata = metadata_with_bin_map(fixture.bins);
+            metadata.name = Some(fixture.package_name.clone());
+            let result = select_package_bin(&metadata);
+
+            match fixture.expected_decision {
+                ClosureDecision::Allow => {
+                    let selected = result.expect("fixture should select a bin");
+                    assert_eq!(
+                        selected.name, fixture.expected_bin_name,
+                        "{} selected bin name",
+                        fixture.id
+                    );
+                    assert_eq!(
+                        selected.relative_path, fixture.expected_bin_path,
+                        "{} selected bin path",
+                        fixture.id
+                    );
+                    let intent = CommandIntent::supported(
+                        crate::PackageSpec::exact(
+                            format!("{}@1.2.3", fixture.package_name),
+                            fixture.package_name,
+                            "1.2.3",
+                            None,
+                        ),
+                        fixture.forwarded_args.clone(),
+                    );
+                    assert_eq!(
+                        ClosureCommandIdentity::from(&intent).forwarded_args,
+                        fixture.forwarded_args,
+                        "{} forwarded args",
+                        fixture.id
+                    );
+                }
+                ClosureDecision::Unsupported => {
+                    let error = result.expect_err("fixture should refuse bin selection");
+                    assert_eq!(
+                        error.reason,
+                        fixture
+                            .expected_reason
+                            .expect("unsupported fixture needs reason"),
+                        "{} refusal reason",
+                        fixture.id
+                    );
+                }
+                other => assert!(
+                    matches!(other, ClosureDecision::Allow | ClosureDecision::Unsupported),
+                    "unsupported fixture decision for {}: {other:?}",
+                    fixture.id
+                ),
+            }
+        }
+    }
+
     fn metadata_with_bins<const N: usize>(
         bins: [(&'static str, &'static str); N],
     ) -> ExtractedPackageMetadata {
+        metadata_with_bin_map(BTreeMap::from(
+            bins.map(|(name, path)| (name.to_string(), path.to_string())),
+        ))
+    }
+
+    fn metadata_with_bin_map(bins: BTreeMap<String, String>) -> ExtractedPackageMetadata {
         ExtractedPackageMetadata {
             name: Some("create-example".to_string()),
             version: Some("1.2.3".to_string()),
-            bins: BTreeMap::from(bins.map(|(name, path)| (name.to_string(), path.to_string()))),
+            bins,
             lifecycle_scripts: BTreeMap::new(),
             dependency_declarations: Vec::new(),
             package_json_path: PathBuf::from("package/package.json"),
+        }
+    }
+
+    #[derive(Debug)]
+    struct BinSelectionFixture {
+        id: String,
+        package_name: String,
+        bins: BTreeMap<String, String>,
+        forwarded_args: Vec<String>,
+        expected_decision: ClosureDecision,
+        expected_reason: Option<M2Reason>,
+        expected_bin_name: String,
+        expected_bin_path: String,
+    }
+
+    fn parse_bin_selection_fixture_manifest(manifest: &str) -> Vec<BinSelectionFixture> {
+        manifest
+            .lines()
+            .filter(|line| !line.trim().is_empty() && !line.trim_start().starts_with('#'))
+            .map(parse_bin_selection_fixture)
+            .collect()
+    }
+
+    fn parse_bin_selection_fixture(line: &str) -> BinSelectionFixture {
+        let fields = line.split('|').collect::<Vec<_>>();
+        assert_eq!(fields.len(), 8, "fixture row must have 8 fields: {line}");
+        BinSelectionFixture {
+            id: fields[0].to_string(),
+            package_name: fields[1].to_string(),
+            bins: parse_bins_field(fields[2]),
+            forwarded_args: serde_json::from_str(fields[3])
+                .expect("forwarded args fixture should be JSON string array"),
+            expected_decision: parse_fixture_decision(fields[4]),
+            expected_reason: parse_fixture_reason(fields[5]),
+            expected_bin_name: fields[6].to_string(),
+            expected_bin_path: fields[7].to_string(),
+        }
+    }
+
+    fn parse_bins_field(field: &str) -> BTreeMap<String, String> {
+        if field.is_empty() {
+            return BTreeMap::new();
+        }
+        field
+            .split(',')
+            .map(|entry| {
+                let (name, path) = entry
+                    .split_once('=')
+                    .expect("bin fixture entries must be name=path");
+                (name.to_string(), path.to_string())
+            })
+            .collect()
+    }
+
+    fn parse_fixture_decision(value: &str) -> ClosureDecision {
+        match value {
+            "allow" => ClosureDecision::Allow,
+            "unsupported" => ClosureDecision::Unsupported,
+            other => {
+                assert_eq!(other, "allow", "unsupported fixture decision");
+                ClosureDecision::Allow
+            }
+        }
+    }
+
+    fn parse_fixture_reason(value: &str) -> Option<M2Reason> {
+        match value {
+            "none" => None,
+            "ambiguous_bin" => Some(M2Reason::AmbiguousBin),
+            "missing_bin" => Some(M2Reason::MissingBin),
+            other => {
+                assert_eq!(other, "none", "unsupported fixture reason");
+                None
+            }
         }
     }
 }
