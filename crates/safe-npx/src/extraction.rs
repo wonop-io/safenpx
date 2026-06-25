@@ -443,10 +443,14 @@ const LIFECYCLE_SCRIPTS: &[&str] = &[
     "preinstall",
     "install",
     "postinstall",
+    "preprepare",
     "prepare",
+    "postprepare",
     "prepublish",
     "prepublishOnly",
     "prepack",
+    "postpack",
+    "dependencies",
 ];
 
 fn is_lifecycle_script(name: &str) -> bool {

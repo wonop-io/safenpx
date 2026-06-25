@@ -69,10 +69,14 @@ fn extracts_m2_lifecycle_and_dependency_surfaces() {
                 "preinstall": "node preinstall.js",
                 "install": "node install.js",
                 "postinstall": "node postinstall.js",
+                "preprepare": "node preprepare.js",
                 "prepare": "node prepare.js",
+                "postprepare": "node postprepare.js",
                 "prepublish": "node prepublish.js",
                 "prepublishOnly": "node prepublish-only.js",
                 "prepack": "node prepack.js",
+                "postpack": "node postpack.js",
+                "dependencies": "node dependencies.js",
                 "test": "node test.js"
             },
             "dependencies": {"left-pad": "^1.3.0"},
@@ -87,7 +91,7 @@ fn extracts_m2_lifecycle_and_dependency_surfaces() {
     let extracted = extract_verified_root_artifact(&tarball, artifact_identity(), workspace.path())
         .expect("metadata package should extract");
 
-    assert_eq!(extracted.metadata.lifecycle_scripts.len(), 7);
+    assert_eq!(extracted.metadata.lifecycle_scripts.len(), 11);
     assert!(!extracted.metadata.lifecycle_scripts.contains_key("test"));
     assert_dependency(
         &extracted.metadata.dependency_declarations,
