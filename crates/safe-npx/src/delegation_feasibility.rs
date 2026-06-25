@@ -34,6 +34,8 @@ pub struct DelegationFeasibilityRow {
 pub enum DelegationStep {
     /// Package metadata or coordinate resolution.
     MetadataResolution,
+    /// Pinned local tarball unpack/install/execute path.
+    RootTarballExecution,
     /// Registry source selection.
     RegistrySelection,
     /// Package-manager cache selection or mutation.
@@ -46,6 +48,8 @@ pub enum DelegationStep {
     ShimGeneration,
     /// Binary lookup and selection.
     BinSelection,
+    /// Forwarded argv and command construction.
+    CommandIdentity,
     /// Package-manager configuration and version behavior.
     Configuration,
     /// Ambient process authority and inherited environment.
@@ -141,12 +145,14 @@ fn required_field(value: &str, name: &str) -> String {
 fn parse_step(value: &str) -> Option<DelegationStep> {
     match value {
         "metadata_resolution" => Some(DelegationStep::MetadataResolution),
+        "root_tarball_execution" => Some(DelegationStep::RootTarballExecution),
         "registry_selection" => Some(DelegationStep::RegistrySelection),
         "cache_selection" => Some(DelegationStep::CacheSelection),
         "dependency_resolution" => Some(DelegationStep::DependencyResolution),
         "lifecycle_execution" => Some(DelegationStep::LifecycleExecution),
         "shim_generation" => Some(DelegationStep::ShimGeneration),
         "bin_selection" => Some(DelegationStep::BinSelection),
+        "command_identity" => Some(DelegationStep::CommandIdentity),
         "configuration" => Some(DelegationStep::Configuration),
         "environment" => Some(DelegationStep::Environment),
         _ => None,
@@ -190,12 +196,14 @@ mod tests {
 
         for step in [
             DelegationStep::MetadataResolution,
+            DelegationStep::RootTarballExecution,
             DelegationStep::RegistrySelection,
             DelegationStep::CacheSelection,
             DelegationStep::DependencyResolution,
             DelegationStep::LifecycleExecution,
             DelegationStep::ShimGeneration,
             DelegationStep::BinSelection,
+            DelegationStep::CommandIdentity,
             DelegationStep::Configuration,
             DelegationStep::Environment,
         ] {

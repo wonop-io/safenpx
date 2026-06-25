@@ -21,11 +21,13 @@ read different registry/cache state without a matching proof must return
 
 ## M2 Recommendation
 
-Pinned package-manager delegation is rejected for M2.
+Pinned local tarball delegation and package-manager delegation are rejected for
+M2.
 
 The rejection does not claim delegation can never be made safe. It says M2 does
-not yet have enough proof to ask npm or another package manager to execute after
-`safe-npx` inspection while preserving exact byte identity.
+not yet have enough proof to ask npm or another package manager to unpack,
+install, synthesize wrappers for, or execute after `safe-npx` inspection while
+preserving exact byte identity.
 
 The first alpha should therefore choose either:
 
@@ -41,6 +43,8 @@ delegation gaps:
 
 - metadata can be fetched again after inspection,
 - floating tags or ranges can resolve to different package versions,
+- pinned local tarball delegation can still unpack, install, and execute through
+  package-manager behavior that is not tied to the `safe-npx` extracted bytes,
 - `.npmrc`, environment, scope, or cwd can select a different registry,
 - cache entries can be reused or mutated without `safe-npx` provenance,
 - dependency installation can resolve and download bytes outside the verified
@@ -49,6 +53,8 @@ delegation gaps:
 - generated shims are synthesized executable bytes not yet tied to inspected
   evidence,
 - delegated bin lookup can differ from `safe-npx` selected-bin evidence,
+- delegated command construction can reinterpret separators, shell wrappers, or
+  npm exec flags before forwarded argv reaches the selected bin,
 - package-manager version, flags, and config can change behavior,
 - delegated processes can inherit ambient environment and authority outside the
   verified closure.
