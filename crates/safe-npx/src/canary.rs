@@ -57,6 +57,31 @@ impl CanaryFixture {
     }
 }
 
+/// Local probe that records blocked canary network attempts.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct CanaryNetworkProbe {
+    blocked_attempts: Vec<String>,
+}
+
+impl CanaryNetworkProbe {
+    /// Record that inspection observed and blocked a network-attempt trap.
+    pub fn record_blocked_attempt(&mut self, fixture: &CanaryFixture) {
+        self.blocked_attempts.push(fixture.id.clone());
+    }
+
+    /// Return true when a fixture's network attempt was blocked by inspection.
+    pub fn blocked_attempt_for(&self, fixture: &CanaryFixture) -> bool {
+        self.blocked_attempts
+            .iter()
+            .any(|attempt| attempt == &fixture.id)
+    }
+
+    /// Return all blocked canary network attempts.
+    pub fn blocked_attempts(&self) -> &[String] {
+        &self.blocked_attempts
+    }
+}
+
 /// Result of inspecting one canary fixture.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct CanaryInspection {
@@ -72,6 +97,41 @@ impl CanaryInspection {
     /// Return true when the fixture sentinel remains absent after inspection.
     pub fn sentinel_absent(&self) -> bool {
         !self.sentinel_path.exists()
+    }
+}
+
+/// Inspection subject that can be checked against canary fixtures.
+pub trait CanaryInspector {
+    /// Inspect one fixture while using the provided local network probe.
+    fn inspect_fixture(
+        &mut self,
+        fixture: &CanaryFixture,
+        sentinel_root: &Path,
+        network_probe: &mut CanaryNetworkProbe,
+    ) -> CanaryInspection;
+}
+
+/// Static inspect-mode subject that reads canary metadata without payloads.
+#[derive(Clone, Debug, Default)]
+pub struct StaticCanaryInspector;
+
+impl CanaryInspector for StaticCanaryInspector {
+    /// Inspect canary metadata and block declared network-attempt traps.
+    fn inspect_fixture(
+        &mut self,
+        fixture: &CanaryFixture,
+        sentinel_root: &Path,
+        network_probe: &mut CanaryNetworkProbe,
+    ) -> CanaryInspection {
+        if fixture.network_expectation == CanaryNetworkExpectation::DetectedWithoutExecution {
+            network_probe.record_blocked_attempt(fixture);
+        }
+
+        CanaryInspection {
+            fixture_id: fixture.id.clone(),
+            sentinel_path: fixture.sentinel_path(sentinel_root),
+            network_attempt_detected: network_probe.blocked_attempt_for(fixture),
+        }
     }
 }
 
@@ -91,12 +151,20 @@ pub fn parse_canary_fixture_manifest(manifest: &str) -> Vec<CanaryFixture> {
 
 /// Inspect one canary fixture without executing its trap payload.
 pub fn inspect_canary_fixture(fixture: &CanaryFixture, sentinel_root: &Path) -> CanaryInspection {
-    CanaryInspection {
-        fixture_id: fixture.id.clone(),
-        sentinel_path: fixture.sentinel_path(sentinel_root),
-        network_attempt_detected: fixture.network_expectation
-            == CanaryNetworkExpectation::DetectedWithoutExecution,
-    }
+    let mut inspector = StaticCanaryInspector;
+    let mut network_probe = CanaryNetworkProbe::default();
+
+    inspect_canary_fixture_with(&mut inspector, fixture, sentinel_root, &mut network_probe)
+}
+
+/// Inspect one canary fixture with an explicit inspection subject.
+pub fn inspect_canary_fixture_with(
+    inspector: &mut impl CanaryInspector,
+    fixture: &CanaryFixture,
+    sentinel_root: &Path,
+    network_probe: &mut CanaryNetworkProbe,
+) -> CanaryInspection {
+    inspector.inspect_fixture(fixture, sentinel_root, network_probe)
 }
 
 /// Inspect canary fixtures and assert that no sentinel was created.
@@ -104,15 +172,41 @@ pub fn assert_canary_inspection_leaves_sentinels_absent(
     fixtures: &[CanaryFixture],
     sentinel_root: &Path,
 ) {
+    let mut inspector = StaticCanaryInspector;
+
+    assert_canary_inspection_leaves_sentinels_absent_with(&mut inspector, fixtures, sentinel_root);
+}
+
+/// Inspect canary fixtures through an explicit subject and assert no sentinels.
+pub fn assert_canary_inspection_leaves_sentinels_absent_with(
+    inspector: &mut impl CanaryInspector,
+    fixtures: &[CanaryFixture],
+    sentinel_root: &Path,
+) -> Vec<CanaryInspection> {
+    let mut inspections = Vec::new();
+    let mut network_probe = CanaryNetworkProbe::default();
+
     for fixture in fixtures {
-        let inspection = inspect_canary_fixture(fixture, sentinel_root);
+        let inspection =
+            inspect_canary_fixture_with(inspector, fixture, sentinel_root, &mut network_probe);
+
+        if fixture.network_expectation == CanaryNetworkExpectation::DetectedWithoutExecution {
+            assert!(
+                inspection.network_attempt_detected,
+                "{} network attempt was not detected",
+                fixture.id
+            );
+        }
         assert!(
             inspection.sentinel_absent(),
             "{} created sentinel {:?}",
             fixture.id,
             inspection.sentinel_path
         );
+        inspections.push(inspection);
     }
+
+    inspections
 }
 
 /// Inspect the bundled canary fixtures and assert that no package code ran.
@@ -203,10 +297,11 @@ mod tests {
     /// Verifies inspect mode leaves all bundled sentinels absent.
     fn inspect_mode_leaves_all_sentinels_absent() {
         let workspace = CanaryTempRoot::new();
+        let fixtures = canary_fixtures();
 
         assert_bundled_canary_inspection_is_safe(workspace.path());
 
-        for fixture in canary_fixtures() {
+        for fixture in fixtures {
             assert!(
                 !fixture.sentinel_path(workspace.path()).exists(),
                 "{} sentinel should be absent",
@@ -246,22 +341,35 @@ mod tests {
     fn network_attempt_is_detected_without_executing_package_code() {
         let workspace = CanaryTempRoot::new();
         let fixture = fixture_by_kind(CanaryTrapKind::NetworkAttempt);
-        let inspection = inspect_canary_fixture(&fixture, workspace.path());
+        let mut inspector = StaticCanaryInspector;
+        let mut network_probe = CanaryNetworkProbe::default();
+        let inspection = inspect_canary_fixture_with(
+            &mut inspector,
+            &fixture,
+            workspace.path(),
+            &mut network_probe,
+        );
 
         assert!(inspection.network_attempt_detected);
+        assert_eq!(network_probe.blocked_attempts(), &[fixture.id.clone()]);
         assert!(inspection.sentinel_absent());
     }
 
     #[test]
-    /// Verifies a touched sentinel would be observable by the harness.
-    fn sentinel_presence_is_observable() {
+    /// Verifies the harness observes a subject that runs package-code payloads.
+    fn harness_observes_inspector_that_runs_payloads() {
         let workspace = CanaryTempRoot::new();
         let fixture = fixture_by_kind(CanaryTrapKind::RootBinary);
-        let sentinel = fixture.sentinel_path(workspace.path());
+        let mut inspector = ExecutingCanaryInspector;
+        let mut network_probe = CanaryNetworkProbe::default();
 
-        fs::write(&sentinel, b"trap ran").expect("test sentinel should be writable");
+        let inspection = inspect_canary_fixture_with(
+            &mut inspector,
+            &fixture,
+            workspace.path(),
+            &mut network_probe,
+        );
 
-        let inspection = inspect_canary_fixture(&fixture, workspace.path());
         assert!(!inspection.sentinel_absent());
     }
 
@@ -280,6 +388,31 @@ mod tests {
             .into_iter()
             .find(|fixture| fixture.trap_kind == kind)
             .expect("fixture kind should be present")
+    }
+
+    /// Test inspector that simulates accidentally executing package code.
+    struct ExecutingCanaryInspector;
+
+    impl CanaryInspector for ExecutingCanaryInspector {
+        /// Write the fixture sentinel as if package code had run.
+        fn inspect_fixture(
+            &mut self,
+            fixture: &CanaryFixture,
+            sentinel_root: &Path,
+            network_probe: &mut CanaryNetworkProbe,
+        ) -> CanaryInspection {
+            let sentinel = fixture.sentinel_path(sentinel_root);
+            fs::write(&sentinel, b"trap ran").expect("test sentinel should be writable");
+            if fixture.network_expectation == CanaryNetworkExpectation::DetectedWithoutExecution {
+                network_probe.record_blocked_attempt(fixture);
+            }
+
+            CanaryInspection {
+                fixture_id: fixture.id.clone(),
+                sentinel_path: sentinel,
+                network_attempt_detected: network_probe.blocked_attempt_for(fixture),
+            }
+        }
     }
 
     /// Temporary sentinel root for canary tests.
