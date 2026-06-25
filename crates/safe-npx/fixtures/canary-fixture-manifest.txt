@@ -1,0 +1,9 @@
+# safe-npx no-package-code-ran canary manifest
+# format: id|trap_kind|sentinel|network_expectation
+root_binary|root_binary|root-bin-ran|none
+root_preinstall|root_preinstall|root-preinstall-ran|none
+root_install|root_install|root-install-ran|none
+root_postinstall|root_postinstall|root-postinstall-ran|none
+dependency_lifecycle|dependency_lifecycle|dependency-lifecycle-ran|none
+generated_shim|generated_shim|generated-shim-ran|none
+network_attempt|network_attempt|network-attempt-ran|detected_without_execution

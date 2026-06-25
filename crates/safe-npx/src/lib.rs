@@ -6,6 +6,8 @@
 use clap::{Parser, ValueEnum};
 use serde::Serialize;
 
+/// M2 no-package-code-ran canary harness.
+mod canary;
 /// M2 execution closure evidence contracts.
 mod closure;
 /// Shared M1 data contracts.
@@ -30,6 +32,7 @@ mod report_tests;
 /// End-to-end root artifact resolver.
 mod resolver;
 
+pub use canary::*;
 pub use closure::*;
 pub use contracts::*;
 pub use download::*;

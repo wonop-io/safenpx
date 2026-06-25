@@ -15,6 +15,7 @@ RUST_DEPS = [
 rust_library(
     name = "safe-npx-lib",
     srcs = [
+        "src/canary.rs",
         "src/closure.rs",
         "src/contracts.rs",
         "src/download.rs",
@@ -29,6 +30,7 @@ rust_library(
         "src/resolver.rs",
     ],
     compile_data = [
+        "fixtures/canary-fixture-manifest.txt",
         "fixtures/m1-fixture-manifest.txt",
         "fixtures/no-network-manifest.txt",
     ],
