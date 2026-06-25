@@ -6,3 +6,6 @@
   refusal, missing-bin refusal, scoped bin metadata, mismatch evidence, and
   exact forwarded-argument JSON preservation.
 - Added a checked-in bin-selection fixture manifest consumed by unit tests.
+- Red-team review found that selected bin paths needed package-relative safety
+  validation before later byte-identity work. Added fail-closed validation and
+  manifest coverage for unsafe bin paths.

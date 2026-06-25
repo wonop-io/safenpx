@@ -5,6 +5,7 @@
 
 use crate::{ClosureDecision, ExtractedPackageMetadata, M2Reason};
 use serde::Serialize;
+use std::path::{Component, Path};
 
 /// Deterministically selected package bin metadata.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
@@ -54,6 +55,15 @@ impl BinSelectionError {
             detail: "package declares no executable bin".to_string(),
         }
     }
+
+    /// Build an unsafe-bin-path selection failure.
+    fn unsafe_path(path: &str) -> Self {
+        Self {
+            decision: M2Reason::UnsupportedClosure.refusal_decision(),
+            reason: M2Reason::UnsupportedClosure,
+            detail: format!("package bin path is not a safe relative path: {path}"),
+        }
+    }
 }
 
 /// Select exactly one package bin from extracted package metadata.
@@ -68,6 +78,7 @@ pub fn select_package_bin(
                 .iter()
                 .next()
                 .expect("one bin entry should be present");
+            validate_bin_relative_path(relative_path)?;
             Ok(SelectedPackageBin {
                 name: name.clone(),
                 relative_path: relative_path.clone(),
@@ -78,6 +89,35 @@ pub fn select_package_bin(
             metadata.bins.keys().cloned().collect(),
         )),
     }
+}
+
+/// Validate that a declared package bin path is safe to resolve under package root.
+fn validate_bin_relative_path(path: &str) -> Result<(), BinSelectionError> {
+    if path.is_empty()
+        || path.contains('\0')
+        || path.contains('\\')
+        || path.contains(':')
+        || Path::new(path).is_absolute()
+    {
+        return Err(BinSelectionError::unsafe_path(path));
+    }
+
+    let mut has_normal_component = false;
+    for component in Path::new(path).components() {
+        match component {
+            Component::Normal(_) => has_normal_component = true,
+            Component::CurDir => {}
+            Component::ParentDir | Component::RootDir | Component::Prefix(_) => {
+                return Err(BinSelectionError::unsafe_path(path));
+            }
+        }
+    }
+
+    if !has_normal_component {
+        return Err(BinSelectionError::unsafe_path(path));
+    }
+
+    Ok(())
 }
 
 #[cfg(test)]
@@ -126,6 +166,25 @@ mod tests {
         assert_eq!(error.decision, ClosureDecision::Unsupported);
         assert_eq!(error.reason, M2Reason::MissingBin);
         assert_eq!(error.detail, "package declares no executable bin");
+    }
+
+    #[test]
+    /// Verifies unsafe bin paths fail closed before selected-bin evidence exists.
+    fn unsafe_bin_path_returns_stable_refusal() {
+        for unsafe_path in [
+            "../outside.js",
+            "/tmp/outside.js",
+            "C:/outside.js",
+            "bin\\cli.js",
+            "",
+        ] {
+            let error = select_package_bin(&metadata_with_bins([("create-example", unsafe_path)]))
+                .expect_err("unsafe bin path should be refused");
+
+            assert_eq!(error.decision, ClosureDecision::ExecutionRefused);
+            assert_eq!(error.reason, M2Reason::UnsupportedClosure);
+            assert!(error.detail.contains("not a safe relative path"));
+        }
     }
 
     #[test]
@@ -182,7 +241,7 @@ mod tests {
     fn bin_selection_fixture_manifest_is_consumed() {
         let fixtures = parse_bin_selection_fixture_manifest(BIN_SELECTION_FIXTURE_MANIFEST);
 
-        assert_eq!(fixtures.len(), 6);
+        assert_eq!(fixtures.len(), 7);
         for fixture in fixtures {
             let mut metadata = metadata_with_bin_map(fixture.bins);
             metadata.name = Some(fixture.package_name.clone());
@@ -228,8 +287,24 @@ mod tests {
                         fixture.id
                     );
                 }
+                ClosureDecision::ExecutionRefused => {
+                    let error = result.expect_err("fixture should refuse bin selection");
+                    assert_eq!(
+                        error.reason,
+                        fixture
+                            .expected_reason
+                            .expect("execution-refused fixture needs reason"),
+                        "{} refusal reason",
+                        fixture.id
+                    );
+                }
                 other => assert!(
-                    matches!(other, ClosureDecision::Allow | ClosureDecision::Unsupported),
+                    matches!(
+                        other,
+                        ClosureDecision::Allow
+                            | ClosureDecision::Unsupported
+                            | ClosureDecision::ExecutionRefused
+                    ),
                     "unsupported fixture decision for {}: {other:?}",
                     fixture.id
                 ),
@@ -311,6 +386,7 @@ mod tests {
         match value {
             "allow" => ClosureDecision::Allow,
             "unsupported" => ClosureDecision::Unsupported,
+            "execution_refused" => ClosureDecision::ExecutionRefused,
             other => {
                 assert_eq!(other, "allow", "unsupported fixture decision");
                 ClosureDecision::Allow
@@ -323,6 +399,7 @@ mod tests {
             "none" => None,
             "ambiguous_bin" => Some(M2Reason::AmbiguousBin),
             "missing_bin" => Some(M2Reason::MissingBin),
+            "unsupported_closure" => Some(M2Reason::UnsupportedClosure),
             other => {
                 assert_eq!(other, "none", "unsupported fixture reason");
                 None

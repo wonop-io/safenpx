@@ -15,11 +15,15 @@ candidate or refuses before any package code can run.
 5. A package without a `bin` entry is missing an executable command.
 6. A package-name/bin-name mismatch is allowed only when the package declares a
    single unambiguous bin object entry; the declared bin name becomes evidence.
+7. A selected bin path must be a safe package-relative path. Traversal,
+   absolute, empty, Windows-separator, NUL, and drive-prefix-like paths are not
+   selected as executable evidence.
 
 ## Refusals
 
 - Ambiguous bins fail closed with reason `ambiguous_bin`.
 - Missing bins fail closed with reason `missing_bin`.
+- Unsafe bin paths fail closed with reason `unsupported_closure`.
 - Bin selection never executes package binaries, lifecycle scripts, dependency
   scripts, or generated shims.
 
@@ -28,4 +32,3 @@ candidate or refuses before any package code can run.
 Forwarded arguments belong to command identity. They must be preserved as an
 ordered list exactly as parsed, including empty-looking flags, repeated flags,
 and values that contain whitespace.
-
