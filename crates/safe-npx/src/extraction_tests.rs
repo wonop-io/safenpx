@@ -134,6 +134,22 @@ fn rejects_stale_metadata_in_reused_root() {
     assert_eq!(error.reason, ExtractionErrorReason::NonEmptyExtractionRoot);
 }
 
+#[cfg(unix)]
+#[test]
+/// Verifies the extraction root itself cannot be a symlink.
+fn rejects_symlinked_extraction_root() {
+    let target = TempRoot::new();
+    let link = TempRootPath::new("safe-npx-extract-link");
+    std::os::unix::fs::symlink(target.path(), link.path())
+        .expect("test symlink root should be creatable");
+    let tarball = tgz_with_files(&[("package/package.json", "{}")]);
+
+    let error = extract_verified_root_artifact(&tarball, artifact_identity(), link.path())
+        .expect_err("symlink root should fail");
+
+    assert_eq!(error.reason, ExtractionErrorReason::SymlinkExtractionRoot);
+}
+
 #[test]
 /// Verifies string bin metadata uses the unscoped package name.
 fn string_bin_uses_unscoped_package_name() {
@@ -272,6 +288,35 @@ fn scoped_artifact_identity() -> ArtifactIdentity {
     }
 }
 
+/// Temporary path for symlink-root tests.
+struct TempRootPath {
+    path: PathBuf,
+}
+
+impl TempRootPath {
+    /// Create a unique temporary path and ensure it does not exist.
+    fn new(prefix: &str) -> Self {
+        let path = unique_temp_path(prefix);
+        let _ = fs::remove_file(&path);
+        let _ = fs::remove_dir_all(&path);
+
+        Self { path }
+    }
+
+    /// Return the temporary path.
+    fn path(&self) -> &Path {
+        &self.path
+    }
+}
+
+impl Drop for TempRootPath {
+    /// Remove the temporary path.
+    fn drop(&mut self) {
+        let _ = fs::remove_file(&self.path);
+        let _ = fs::remove_dir_all(&self.path);
+    }
+}
+
 /// Temporary extraction root for tests.
 struct TempRoot {
     path: PathBuf,
@@ -280,15 +325,7 @@ struct TempRoot {
 impl TempRoot {
     /// Create a unique temporary extraction root.
     fn new() -> Self {
-        let nanos = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .expect("system time should be after unix epoch")
-            .as_nanos();
-        let path = std::env::temp_dir().join(format!(
-            "safe-npx-extract-{}-{nanos}-{}",
-            std::process::id(),
-            next_temp_id()
-        ));
+        let path = unique_temp_path("safe-npx-extract");
         fs::create_dir_all(&path).expect("temp root should be creatable");
 
         Self { path }
@@ -311,4 +348,17 @@ impl Drop for TempRoot {
 fn next_temp_id() -> u64 {
     static NEXT_ID: AtomicU64 = AtomicU64::new(0);
     NEXT_ID.fetch_add(1, Ordering::Relaxed)
+}
+
+/// Return a unique temporary path.
+fn unique_temp_path(prefix: &str) -> PathBuf {
+    let nanos = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .expect("system time should be after unix epoch")
+        .as_nanos();
+    std::env::temp_dir().join(format!(
+        "{prefix}-{}-{nanos}-{}",
+        std::process::id(),
+        next_temp_id()
+    ))
 }

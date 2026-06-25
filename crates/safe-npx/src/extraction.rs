@@ -84,6 +84,8 @@ pub enum ExtractionErrorReason {
     UnsupportedEntry,
     /// Extraction root was not empty before extraction began.
     NonEmptyExtractionRoot,
+    /// Extraction root was itself a symlink.
+    SymlinkExtractionRoot,
     /// Required package metadata was missing.
     MissingPackageJson,
     /// Package metadata could not be parsed.
@@ -102,6 +104,7 @@ pub fn extract_verified_root_artifact(
             format!("could not create extraction root: {error}"),
         )
     })?;
+    reject_symlink_extraction_root(extraction_root)?;
     reject_non_empty_extraction_root(extraction_root)?;
 
     let decoder = GzDecoder::new(Cursor::new(tarball_bytes));
@@ -172,6 +175,24 @@ pub fn extract_verified_root_artifact(
         extraction_root: extraction_root.to_path_buf(),
         metadata,
     })
+}
+
+/// Reject extraction roots that are themselves symlinks.
+fn reject_symlink_extraction_root(extraction_root: &Path) -> Result<(), ExtractionError> {
+    let metadata = fs::symlink_metadata(extraction_root).map_err(|error| {
+        ExtractionError::new(
+            ExtractionErrorReason::InvalidArchive,
+            format!("could not inspect extraction root: {error}"),
+        )
+    })?;
+    if metadata.file_type().is_symlink() {
+        return Err(ExtractionError::new(
+            ExtractionErrorReason::SymlinkExtractionRoot,
+            "extraction root must not be a symlink",
+        ));
+    }
+
+    Ok(())
 }
 
 /// Reject extraction into roots that already contain filesystem state.

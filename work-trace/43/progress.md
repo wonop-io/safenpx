@@ -10,3 +10,5 @@
 - Prior-commit review found pre-existing extraction-root state could allow
   symlink escapes or stale metadata reuse, so extraction now requires an empty
   root before reading archive entries.
+- Focused re-review found symlinked extraction roots could still escape; added
+  explicit extraction-root symlink rejection.
