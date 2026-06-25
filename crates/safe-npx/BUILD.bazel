@@ -22,6 +22,7 @@ rust_library(
         "src/closure.rs",
         "src/closure_blockers.rs",
         "src/contracts.rs",
+        "src/delegation_feasibility.rs",
         "src/direct_execution.rs",
         "src/download.rs",
         "src/extraction.rs",
@@ -45,6 +46,7 @@ rust_library(
     compile_data = [
         "fixtures/bin-selection-fixture-manifest.txt",
         "fixtures/canary-fixture-manifest.txt",
+        "fixtures/delegation-feasibility-manifest.txt",
         "fixtures/m1-fixture-manifest.txt",
         "fixtures/m2-closure-fixture-manifest.txt",
         "fixtures/no-network-manifest.txt",

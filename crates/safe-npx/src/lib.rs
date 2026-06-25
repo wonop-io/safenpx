@@ -16,6 +16,8 @@ mod closure;
 mod closure_blockers;
 /// Shared M1 data contracts.
 mod contracts;
+/// M2 pinned delegation feasibility fixtures.
+mod delegation_feasibility;
 #[cfg(test)]
 /// M2 direct-extract execution prototype for local fixture packages.
 mod direct_execution;
@@ -62,6 +64,7 @@ pub use canary::*;
 pub use closure::*;
 pub use closure_blockers::*;
 pub use contracts::*;
+pub use delegation_feasibility::*;
 pub use download::*;
 pub use executable_identity::*;
 pub use extraction::*;

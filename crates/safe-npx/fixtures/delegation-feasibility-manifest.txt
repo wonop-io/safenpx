@@ -1,0 +1,12 @@
+# safe-npx M2 pinned delegation feasibility manifest
+# format: id|step|byte_source|proof_gap|expected_decision|expected_reason|probe
+metadata_reresolution|metadata_resolution|package metadata|delegated package manager can fetch metadata after inspection|execution_refused|unsupported_closure|race_matrix
+tag_or_range_resolution|metadata_resolution|package coordinates|floating tags or ranges can resolve to different versions at execution time|execution_refused|unsupported_closure|race_matrix
+registry_precedence|registry_selection|registry source|delegated package manager can select a different registry from npmrc env scope or cwd|execution_refused|unsupported_closure|registry_precedence_fixture
+cache_reuse_or_mutation|cache_selection|cached artifact bytes|delegated cache entries lack safe-npx artifact provenance and can drift after inspection|execution_refused|unsupported_closure|race_matrix
+dependency_install|dependency_resolution|dependency artifact bytes|delegated install can resolve and download dependencies outside verified closure|execution_refused|unsupported_closure|static_fixture
+lifecycle_scripts|lifecycle_execution|package scripts|delegated install or execution can run lifecycle scripts outside verified policy|execution_refused|unsupported_closure|canary_fixture
+generated_shims|shim_generation|generated executable shims|delegated shims are synthesized bytes not hashed in inspected closure|execution_refused|unsupported_closure|executable_identity_fixture
+bin_selection|bin_selection|selected executable bytes|delegated bin lookup can differ from safe-npx selected-bin evidence|execution_refused|unsupported_closure|bin_selection_fixture
+package_manager_config|configuration|execution configuration|delegated package manager version flags and config can change install and execution behavior|execution_refused|unsupported_closure|static_fixture
+environment_authority|environment|process authority|delegated process can inherit ambient environment and scripts outside the verified closure|execution_refused|unsupported_closure|static_fixture
