@@ -111,7 +111,11 @@ pub fn execute_local_fixture_package(
     }
 
     let blocker_assessment = assess_static_closure_blockers(&artifact.metadata);
-    if !blocker_assessment.is_clear() {
+    if !blocker_assessment
+        .blocking_dependency_declarations
+        .is_empty()
+        || !blocker_assessment.lifecycle_scripts.is_empty()
+    {
         return DirectExecutionOutcome {
             decision: ClosureDecision::ExecutionRefused,
             reasons: blocker_assessment.reasons,
@@ -123,6 +127,21 @@ pub fn execute_local_fixture_package(
             stdout: Vec::new(),
             stderr: Vec::new(),
             detail: "package metadata contains unproven execution closure blockers".to_string(),
+        };
+    }
+    if !artifact.metadata.dependency_declarations.is_empty() {
+        return DirectExecutionOutcome {
+            decision: ClosureDecision::ExecutionRefused,
+            reasons: vec![M2Reason::UnsupportedClosure],
+            command: ClosureCommandIdentity::from(intent),
+            selected_bin: None,
+            cwd: None,
+            environment: fixture_environment(),
+            exit_code: None,
+            stdout: Vec::new(),
+            stderr: Vec::new(),
+            detail: "package metadata contains dependency declarations outside M2 execution scope"
+                .to_string(),
         };
     }
 
@@ -182,7 +201,6 @@ pub fn execute_local_fixture_package(
     }
 }
 
-/// Return the explicit environment supplied to fixture processes.
 fn fixture_environment() -> DirectExecutionEnvironment {
     DirectExecutionEnvironment {
         inherited_environment_cleared: true,
@@ -190,14 +208,12 @@ fn fixture_environment() -> DirectExecutionEnvironment {
     }
 }
 
-/// Canonicalize a fixture path before using it as cwd.
 fn canonicalize_fixture_path(path: &Path) -> Result<PathBuf, String> {
     path.canonicalize()
         .map_err(|error| format!("could not canonicalize fixture extraction root: {error}"))
 }
 
 #[cfg(test)]
-/// Tests for fixture-only direct execution.
 mod tests {
     use super::*;
     use crate::{
@@ -209,11 +225,8 @@ mod tests {
     #[cfg(unix)]
     use std::os::unix::fs::PermissionsExt;
     use std::sync::atomic::{AtomicU64, Ordering};
-    use std::time::{SystemTime, UNIX_EPOCH};
-
     #[cfg(unix)]
     #[test]
-    /// Verifies the prototype executes only a marked local fixture package.
     fn executes_marked_local_fixture_and_records_evidence() {
         let fixture = TempRoot::new();
         fixture.mark_local();
@@ -265,7 +278,6 @@ mod tests {
     }
 
     #[test]
-    /// Verifies non-fixture roots cannot enter the direct execution path.
     fn refuses_unmarked_roots_without_execution() {
         let fixture = TempRoot::new();
         fixture.write_file("bin/create-example", b"fixture");
@@ -283,7 +295,6 @@ mod tests {
     }
 
     #[test]
-    /// Verifies lifecycle scripts refuse before selected-bin execution.
     fn refuses_lifecycle_scripts() {
         let fixture = marked_fixture_with_file("bin/create-example", b"fixture");
         let mut metadata = metadata_with_bins([("create-example", "bin/create-example")]);
@@ -302,16 +313,24 @@ mod tests {
     }
 
     #[test]
-    /// Verifies dependency declarations refuse before selected-bin execution.
     fn refuses_dependency_declarations() {
+        assert_dependency_refused(DependencyDeclarationKind::Runtime);
+    }
+
+    #[test]
+    fn refuses_dev_dependency_declarations() {
+        assert_dependency_refused(DependencyDeclarationKind::Development);
+    }
+
+    fn assert_dependency_refused(kind: DependencyDeclarationKind) {
         let fixture = marked_fixture_with_file("bin/create-example", b"fixture");
         let mut metadata = metadata_with_bins([("create-example", "bin/create-example")]);
         metadata
             .dependency_declarations
             .push(ExtractedDependencyDeclaration {
                 name: "left-pad".to_string(),
-                requirement: "^1.3.0".to_string(),
-                kind: DependencyDeclarationKind::Runtime,
+                requirement: "^6.0.0".to_string(),
+                kind,
             });
 
         let outcome = execute_local_fixture_package(
@@ -325,7 +344,6 @@ mod tests {
     }
 
     #[test]
-    /// Verifies ambiguous bins are execution-refused in the prototype path.
     fn refuses_ambiguous_bins_as_execution_refused() {
         let fixture = marked_fixture_with_file("bin/create-example", b"fixture");
         let metadata = metadata_with_bins([
@@ -344,7 +362,6 @@ mod tests {
     }
 
     #[test]
-    /// Verifies missing bins are execution-refused in the prototype path.
     fn refuses_missing_bins_as_execution_refused() {
         let fixture = TempRoot::new();
         fixture.mark_local();
@@ -361,7 +378,6 @@ mod tests {
     }
 
     #[test]
-    /// Verifies unsafe or shim-like paths refuse through selected-bin byte identity.
     fn refuses_generated_shim_ambiguity() {
         let fixture = TempRoot::new();
         fixture.mark_local();
@@ -429,9 +445,8 @@ mod tests {
     impl TempRoot {
         fn new() -> Self {
             let path = std::env::temp_dir().join(format!(
-                "safe-npx-direct-{}-{}-{}",
+                "safe-npx-direct-{}-{}",
                 std::process::id(),
-                temp_millis(),
                 next_temp_id(),
             ));
             fs::create_dir_all(&path).expect("temp root should be creatable");
@@ -481,12 +496,5 @@ mod tests {
     fn next_temp_id() -> u64 {
         static NEXT_ID: AtomicU64 = AtomicU64::new(0);
         NEXT_ID.fetch_add(1, Ordering::SeqCst)
-    }
-
-    fn temp_millis() -> u128 {
-        SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .expect("system clock should be after epoch")
-            .as_millis()
     }
 }
