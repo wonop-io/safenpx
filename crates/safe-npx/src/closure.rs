@@ -36,12 +36,21 @@ pub struct ExecutionClosureEvidence {
 impl ExecutionClosureEvidence {
     /// Return true only when execution closure evidence is complete enough to run.
     pub fn is_executable(&self) -> bool {
-        self.decision == ClosureDecision::Allow && self.reasons.is_empty()
+        self.decision == ClosureDecision::Allow
+            && self.reasons.is_empty()
+            && self.selected_bin.is_some()
+            && self.lifecycle_scripts.is_empty()
+            && !self.has_unverified_dependency_declarations()
     }
 
     /// Return true when dependency declarations are not yet verified artifacts.
     pub fn has_unverified_dependency_declarations(&self) -> bool {
-        !self.dependency_declarations.is_empty() && self.verified_dependencies.is_empty()
+        self.dependency_declarations.iter().any(|declaration| {
+            !self
+                .verified_dependencies
+                .iter()
+                .any(|artifact| artifact.name == declaration.name)
+        })
     }
 }
 
@@ -200,7 +209,7 @@ impl M2Reason {
             | Self::RegistryPrecedenceMismatch
             | Self::ShimIdentityMismatch => ClosureDecision::ExecutionRefused,
             Self::AmbiguousBin | Self::MissingBin => ClosureDecision::Unsupported,
-            Self::NonInteractiveStop => ClosureDecision::Ask,
+            Self::NonInteractiveStop => ClosureDecision::ExecutionRefused,
         }
     }
 }
@@ -256,7 +265,7 @@ mod tests {
         );
         assert_eq!(
             M2Reason::NonInteractiveStop.refusal_decision(),
-            ClosureDecision::Ask
+            ClosureDecision::ExecutionRefused
         );
     }
 
@@ -284,7 +293,36 @@ mod tests {
     }
 
     #[test]
-    fn executable_requires_allow_and_no_reasons() {
+    fn partial_dependency_verification_is_not_executable() {
+        let evidence = evidence_with(
+            Vec::new(),
+            vec![
+                DependencyDeclaration {
+                    name: "left-pad".to_string(),
+                    requirement: "^1.3.0".to_string(),
+                    kind: DependencyDeclarationKind::Runtime,
+                },
+                DependencyDeclaration {
+                    name: "right-pad".to_string(),
+                    requirement: "^1.0.0".to_string(),
+                    kind: DependencyDeclarationKind::Runtime,
+                },
+            ],
+            vec![VerifiedDependencyArtifact {
+                name: "left-pad".to_string(),
+                version: "1.3.0".to_string(),
+                artifact: artifact("left-pad", "1.3.0"),
+            }],
+            ClosureDecision::Allow,
+            Vec::new(),
+        );
+
+        assert!(evidence.has_unverified_dependency_declarations());
+        assert!(!evidence.is_executable());
+    }
+
+    #[test]
+    fn executable_requires_complete_allow_evidence() {
         let evidence = evidence_with(
             Vec::new(),
             Vec::new(),
@@ -303,6 +341,11 @@ mod tests {
             vec![M2Reason::UnsupportedClosure],
         );
         assert!(!refused.is_executable());
+
+        let mut root_artifact_only = evidence;
+        root_artifact_only.selected_bin = None;
+        root_artifact_only.generated_shim = None;
+        assert!(!root_artifact_only.is_executable());
     }
 
     #[test]
