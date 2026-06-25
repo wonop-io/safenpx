@@ -214,6 +214,16 @@ Acceptance criteria:
 - If the executable subset is too narrow for useful alpha execution, the alpha
   ships as inspect-only rather than weakening the invariant.
 
+Decision:
+
+- M2 chooses `direct_extract` for the first alpha execution path. See
+  `docs/m2-execution-decision.md`.
+- The first runnable class is exact-version, verified root artifact, one
+  deterministic selected root bin, no lifecycle scripts, no dependencies unless
+  the full dependency closure is proven, and no package-manager delegation.
+- Unsupported topologies remain inspect-only or return `execution_refused`;
+  unproven dependency closure returns reason `unsupported_closure`.
+
 ## M3: Inspect Evidence And JSON V0
 
 Goal: produce useful human and machine evidence before any package code can run.
