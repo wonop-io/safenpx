@@ -1,12 +1,16 @@
 //! Human and JSON M1 report rendering.
 
 use crate::{
-    inspect_raw_spec_with_probe, ArtifactIdentity, Cli, CommandIntent, CountingProbe, Decision,
-    M1Reason, NpmMetadataClient, PackageSpecParse, RegistryTransport, ReqwestRegistryTransport,
-    ReqwestTarballTransport, ResolvedPackage, RootArtifactResolver, TarballDownloader,
-    TarballTransport, UnsupportedSpecCategory,
+    inspect_raw_spec_with_probe, ArtifactIdentity, Cli, ClosureCommandIdentity, ClosureDecision,
+    CommandIntent, CountingProbe, Decision, M1Reason, M2Reason, NpmMetadataClient,
+    PackageSpecParse, RegistryTransport, ReqwestRegistryTransport, ReqwestTarballTransport,
+    ResolvedPackage, RootArtifactResolver, TarballDownloader, TarballTransport,
+    UnsupportedSpecCategory,
 };
 use serde::Serialize;
+
+/// M2 exit code used when execution closure proof fails before package code can run.
+pub const M2_EXECUTION_REFUSED_EXIT_CODE: i32 = 5;
 
 /// Scaffold inspection report emitted for humans and agents.
 #[derive(Debug, PartialEq, Eq, Serialize)]
@@ -54,6 +58,52 @@ pub enum M1Evidence {
         /// Short deterministic detail for humans and tests.
         detail: String,
     },
+}
+
+/// Report emitted when M2 refuses execution after inspection succeeds.
+#[derive(Debug, PartialEq, Eq, Serialize)]
+pub struct M2ExecutionRefusalReport {
+    /// Command identity requested by the caller.
+    pub command: ClosureCommandIdentity,
+    /// Stable execution decision.
+    pub decision: ClosureDecision,
+    /// Stable machine-readable refusal reasons.
+    pub reasons: Vec<M2Reason>,
+    /// Next action available to a human or agent.
+    pub required_next_action: RequiredNextAction,
+    /// Execution evidence; null because refused paths never run package code.
+    pub execution: Option<ExecutionReport>,
+    /// Deterministic process exit code for this M2 stop.
+    pub exit_code: i32,
+}
+
+/// Agent-readable next action vocabulary.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum RequiredNextAction {
+    /// No action is required.
+    None,
+    /// Ask a human before proceeding.
+    AskUser,
+    /// Retry with a narrower exact command shape.
+    RetryNarrowerCommand,
+    /// Inspect only; execution is not available for this closure.
+    InspectOnly,
+    /// Use a future explicit override path.
+    ExplicitOverride,
+    /// The requested command shape is unsupported.
+    Unsupported,
+}
+
+/// Execution details populated only when package code actually runs.
+#[derive(Debug, PartialEq, Eq, Serialize)]
+pub struct ExecutionReport {
+    /// Executed program path or identifier.
+    pub program: String,
+    /// Discrete argv passed to the program.
+    pub argv: Vec<String>,
+    /// Process exit code returned by execution.
+    pub exit_code: Option<i32>,
 }
 
 /// Build the current scaffold report from parsed CLI arguments.
@@ -133,6 +183,49 @@ pub fn render_report(cli: &Cli, report: &Report) -> anyhow::Result<String> {
     Ok(format!(
         "Package: {}\nStatus: {}\nRecommendation: {:?}\n{}{}\nThis Rust CLI does not execute package code in M1.\nNext step: expand evidence beyond the root artifact.\n",
         report.package_spec, report.status, report.recommendation, intent_line, evidence_line
+    ))
+}
+
+/// Build a deterministic M2 refusal report for an unproven closure.
+pub fn build_m2_execution_refusal_report(
+    command: ClosureCommandIdentity,
+    reasons: Vec<M2Reason>,
+) -> M2ExecutionRefusalReport {
+    let required_next_action = required_next_action_for_m2_reasons(&reasons);
+
+    M2ExecutionRefusalReport {
+        command,
+        decision: ClosureDecision::ExecutionRefused,
+        reasons,
+        required_next_action,
+        execution: None,
+        exit_code: M2_EXECUTION_REFUSED_EXIT_CODE,
+    }
+}
+
+/// Convert an interactive M2 ask into a non-interactive stop.
+pub fn build_m2_non_interactive_stop_report(
+    command: ClosureCommandIdentity,
+) -> M2ExecutionRefusalReport {
+    build_m2_execution_refusal_report(command, vec![M2Reason::NonInteractiveStop])
+}
+
+/// Render an M2 execution refusal report in the requested output format.
+pub fn render_m2_execution_refusal_report(
+    cli: &Cli,
+    report: &M2ExecutionRefusalReport,
+) -> anyhow::Result<String> {
+    if cli.json {
+        return Ok(serde_json::to_string_pretty(report)?);
+    }
+
+    Ok(format!(
+        "Execution refused\nPackage: {}\nDecision: {}\nReasons: {}\nRequired next action: {}\nExit code: {}\nNo package code was executed.\n",
+        report.command.requested,
+        closure_decision_name(&report.decision),
+        format_m2_reasons(&report.reasons),
+        required_next_action_name(&report.required_next_action),
+        report.exit_code
     ))
 }
 
@@ -236,5 +329,69 @@ fn unsupported_category_name(category: &UnsupportedSpecCategory) -> &'static str
         UnsupportedSpecCategory::MultipleSpecs => "multiple_specs",
         UnsupportedSpecCategory::NpmExecVariant => "npm_exec_variant",
         UnsupportedSpecCategory::Other => "other",
+    }
+}
+
+/// Return the next action implied by M2 refusal reasons.
+fn required_next_action_for_m2_reasons(reasons: &[M2Reason]) -> RequiredNextAction {
+    if reasons.contains(&M2Reason::AmbiguousBin) || reasons.contains(&M2Reason::MissingBin) {
+        return RequiredNextAction::RetryNarrowerCommand;
+    }
+    if reasons.contains(&M2Reason::NonInteractiveStop) {
+        return RequiredNextAction::AskUser;
+    }
+    if reasons.contains(&M2Reason::UnsupportedClosure) {
+        return RequiredNextAction::InspectOnly;
+    }
+
+    RequiredNextAction::Unsupported
+}
+
+/// Format M2 reasons as stable comma-separated names for terminal output.
+fn format_m2_reasons(reasons: &[M2Reason]) -> String {
+    reasons
+        .iter()
+        .map(m2_reason_name)
+        .collect::<Vec<_>>()
+        .join(", ")
+}
+
+/// Return the stable serialized name for an M2 decision.
+fn closure_decision_name(decision: &ClosureDecision) -> &'static str {
+    match decision {
+        ClosureDecision::Allow => "allow",
+        ClosureDecision::Ask => "ask",
+        ClosureDecision::Deny => "deny",
+        ClosureDecision::Unsupported => "unsupported",
+        ClosureDecision::InspectionError => "inspection_error",
+        ClosureDecision::ExecutionRefused => "execution_refused",
+    }
+}
+
+/// Return the stable serialized name for an M2 reason.
+fn m2_reason_name(reason: &M2Reason) -> &'static str {
+    match reason {
+        M2Reason::InteractiveApprovalRequired => "interactive_approval_required",
+        M2Reason::AmbiguousBin => "ambiguous_bin",
+        M2Reason::MissingBin => "missing_bin",
+        M2Reason::LifecycleScriptPresent => "lifecycle_script_present",
+        M2Reason::UnsupportedClosure => "unsupported_closure",
+        M2Reason::MetadataChanged => "metadata_changed",
+        M2Reason::CacheIdentityMismatch => "cache_identity_mismatch",
+        M2Reason::RegistryPrecedenceMismatch => "registry_precedence_mismatch",
+        M2Reason::ShimIdentityMismatch => "shim_identity_mismatch",
+        M2Reason::NonInteractiveStop => "non_interactive_stop",
+    }
+}
+
+/// Return the stable serialized name for a next action.
+fn required_next_action_name(action: &RequiredNextAction) -> &'static str {
+    match action {
+        RequiredNextAction::None => "none",
+        RequiredNextAction::AskUser => "ask_user",
+        RequiredNextAction::RetryNarrowerCommand => "retry_narrower_command",
+        RequiredNextAction::InspectOnly => "inspect_only",
+        RequiredNextAction::ExplicitOverride => "explicit_override",
+        RequiredNextAction::Unsupported => "unsupported",
     }
 }

@@ -1,9 +1,12 @@
 //! Tests for M1 report rendering.
 
 use crate::{
-    build_report_with_resolver, render_report, run, Cli, Decision, M1Evidence, NpmMetadataClient,
-    RegistryHttpResponse, RegistryTransport, RegistryTransportError, RootArtifactResolver,
-    TarballDownloader, TarballHttpResponse, TarballTransport, TarballTransportError,
+    build_m2_execution_refusal_report, build_m2_non_interactive_stop_report,
+    build_report_with_resolver, render_m2_execution_refusal_report, render_report, run, Cli,
+    ClosureCommandIdentity, Decision, M1Evidence, M2Reason, NpmMetadataClient,
+    RegistryHttpResponse, RegistryTransport, RegistryTransportError, RequiredNextAction,
+    RootArtifactResolver, TarballDownloader, TarballHttpResponse, TarballTransport,
+    TarballTransportError, M2_EXECUTION_REFUSED_EXIT_CODE,
 };
 use base64::prelude::{Engine as _, BASE64_STANDARD};
 use clap::Parser;
@@ -240,12 +243,108 @@ fn registry_failure_remains_ask_when_allow_was_requested() {
     assert!(output.contains("\"downloaded\": false"));
 }
 
+#[test]
+fn renders_human_m2_execution_refusal_output() {
+    let cli = Cli::parse_from(["safe-npx", "create-example@1.2.3"]);
+    let report = build_m2_execution_refusal_report(
+        command_identity(),
+        vec![M2Reason::LifecycleScriptPresent],
+    );
+    let output = render_m2_execution_refusal_report(&cli, &report)
+        .expect("m2 refusal rendering should succeed");
+
+    assert!(output.contains("Execution refused"));
+    assert!(output.contains("Package: create-example@1.2.3"));
+    assert!(output.contains("Decision: execution_refused"));
+    assert!(output.contains("Reasons: lifecycle_script_present"));
+    assert!(output.contains("No package code was executed."));
+    assert!(!output.contains("raw npx"));
+    assert!(!output.contains("fallback"));
+}
+
+#[test]
+fn renders_json_for_m2_execution_refusal_reasons() {
+    let cli = Cli::parse_from(["safe-npx", "--json", "create-example@1.2.3"]);
+    let required_reasons = [
+        M2Reason::UnsupportedClosure,
+        M2Reason::AmbiguousBin,
+        M2Reason::MissingBin,
+        M2Reason::LifecycleScriptPresent,
+        M2Reason::RegistryPrecedenceMismatch,
+        M2Reason::CacheIdentityMismatch,
+        M2Reason::ShimIdentityMismatch,
+    ];
+
+    for reason in required_reasons {
+        let report = build_m2_execution_refusal_report(command_identity(), vec![reason.clone()]);
+        let output = render_m2_execution_refusal_report(&cli, &report)
+            .expect("m2 json rendering should succeed");
+
+        assert!(output.contains("\"decision\": \"execution_refused\""));
+        assert!(output.contains(&format!("\"{}\"", expected_m2_reason_name(&reason))));
+        assert!(output.contains("\"required_next_action\""));
+        assert!(output.contains("\"execution\": null"));
+        assert!(output.contains(&format!(
+            "\"exit_code\": {}",
+            M2_EXECUTION_REFUSED_EXIT_CODE
+        )));
+        assert!(!output.contains("raw npx"));
+    }
+}
+
+#[test]
+fn non_interactive_stop_uses_ask_user_next_action() {
+    let report = build_m2_non_interactive_stop_report(command_identity());
+
+    assert_eq!(report.reasons, vec![M2Reason::NonInteractiveStop]);
+    assert_eq!(report.required_next_action, RequiredNextAction::AskUser);
+    assert!(report.execution.is_none());
+    assert_eq!(report.exit_code, M2_EXECUTION_REFUSED_EXIT_CODE);
+}
+
+#[test]
+fn retryable_bin_refusals_use_narrower_command_next_action() {
+    for reason in [M2Reason::AmbiguousBin, M2Reason::MissingBin] {
+        let report = build_m2_execution_refusal_report(command_identity(), vec![reason]);
+
+        assert_eq!(
+            report.required_next_action,
+            RequiredNextAction::RetryNarrowerCommand
+        );
+        assert_eq!(report.exit_code, M2_EXECUTION_REFUSED_EXIT_CODE);
+    }
+}
+
 fn run_with_resolver(
     cli: &Cli,
     resolver: &RootArtifactResolver<StubRegistryTransport, StubTarballTransport>,
 ) -> String {
     let report = build_report_with_resolver(cli, resolver);
     render_report(cli, &report).expect("report rendering should succeed")
+}
+
+fn command_identity() -> ClosureCommandIdentity {
+    ClosureCommandIdentity {
+        requested: "create-example@1.2.3".to_string(),
+        forwarded_args: vec!["--template".to_string(), "react".to_string()],
+    }
+}
+
+fn expected_m2_reason_name(reason: &M2Reason) -> &'static str {
+    match reason {
+        M2Reason::UnsupportedClosure => "unsupported_closure",
+        M2Reason::AmbiguousBin => "ambiguous_bin",
+        M2Reason::MissingBin => "missing_bin",
+        M2Reason::LifecycleScriptPresent => "lifecycle_script_present",
+        M2Reason::RegistryPrecedenceMismatch => "registry_precedence_mismatch",
+        M2Reason::CacheIdentityMismatch => "cache_identity_mismatch",
+        M2Reason::ShimIdentityMismatch => "shim_identity_mismatch",
+        M2Reason::InteractiveApprovalRequired
+        | M2Reason::MetadataChanged
+        | M2Reason::NonInteractiveStop => {
+            panic!("unexpected reason in issue 51 required coverage")
+        }
+    }
 }
 
 fn verified_resolver(
