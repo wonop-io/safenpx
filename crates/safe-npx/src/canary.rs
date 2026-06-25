@@ -262,6 +262,7 @@ mod tests {
     use super::*;
     use std::collections::HashSet;
     use std::fs;
+    use std::sync::atomic::{AtomicU64, Ordering};
     use std::time::{SystemTime, UNIX_EPOCH};
 
     #[test]
@@ -465,8 +466,11 @@ mod tests {
                 .duration_since(UNIX_EPOCH)
                 .expect("system time should be after unix epoch")
                 .as_nanos();
-            let path = std::env::temp_dir()
-                .join(format!("safe-npx-canary-{}-{nanos}", std::process::id()));
+            let path = std::env::temp_dir().join(format!(
+                "safe-npx-canary-{}-{nanos}-{}",
+                std::process::id(),
+                next_temp_id()
+            ));
             fs::create_dir_all(&path).expect("canary temp root should be creatable");
 
             Self { path }
@@ -483,5 +487,11 @@ mod tests {
         fn drop(&mut self) {
             let _ = fs::remove_dir_all(&self.path);
         }
+    }
+
+    /// Return a unique id for parallel test temp roots.
+    fn next_temp_id() -> u64 {
+        static NEXT_ID: AtomicU64 = AtomicU64::new(0);
+        NEXT_ID.fetch_add(1, Ordering::Relaxed)
     }
 }

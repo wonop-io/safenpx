@@ -6,6 +6,7 @@ use flate2::Compression;
 use std::fs;
 use std::io::Write;
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
 use tar::{Builder, EntryType, Header};
 
@@ -99,6 +100,38 @@ fn rejects_malformed_package_json() {
         .expect_err("malformed package.json should fail");
 
     assert_eq!(error.reason, ExtractionErrorReason::MalformedPackageJson);
+}
+
+#[test]
+/// Verifies extraction roots must not contain pre-existing filesystem state.
+fn rejects_non_empty_extraction_root() {
+    let workspace = TempRoot::new();
+    fs::write(workspace.path().join("preexisting"), b"state")
+        .expect("preexisting file should be writable");
+    let tarball = tgz_with_files(&[("package/package.json", "{}")]);
+
+    let error = extract_verified_root_artifact(&tarball, artifact_identity(), workspace.path())
+        .expect_err("non-empty root should fail");
+
+    assert_eq!(error.reason, ExtractionErrorReason::NonEmptyExtractionRoot);
+}
+
+#[test]
+/// Verifies stale metadata in a reused root cannot be tied to a new artifact.
+fn rejects_stale_metadata_in_reused_root() {
+    let workspace = TempRoot::new();
+    fs::create_dir_all(workspace.path().join("package")).expect("package dir should be writable");
+    fs::write(
+        workspace.path().join("package/package.json"),
+        br#"{"name":"stale","version":"0.0.1"}"#,
+    )
+    .expect("stale package.json should be writable");
+    let tarball = tgz_with_files(&[("package/README.md", "readme")]);
+
+    let error = extract_verified_root_artifact(&tarball, artifact_identity(), workspace.path())
+        .expect_err("stale metadata root should fail");
+
+    assert_eq!(error.reason, ExtractionErrorReason::NonEmptyExtractionRoot);
 }
 
 #[test]
@@ -251,8 +284,11 @@ impl TempRoot {
             .duration_since(UNIX_EPOCH)
             .expect("system time should be after unix epoch")
             .as_nanos();
-        let path =
-            std::env::temp_dir().join(format!("safe-npx-extract-{}-{nanos}", std::process::id()));
+        let path = std::env::temp_dir().join(format!(
+            "safe-npx-extract-{}-{nanos}-{}",
+            std::process::id(),
+            next_temp_id()
+        ));
         fs::create_dir_all(&path).expect("temp root should be creatable");
 
         Self { path }
@@ -269,4 +305,10 @@ impl Drop for TempRoot {
     fn drop(&mut self) {
         let _ = fs::remove_dir_all(&self.path);
     }
+}
+
+/// Return a unique id for parallel test temp roots.
+fn next_temp_id() -> u64 {
+    static NEXT_ID: AtomicU64 = AtomicU64::new(0);
+    NEXT_ID.fetch_add(1, Ordering::Relaxed)
 }

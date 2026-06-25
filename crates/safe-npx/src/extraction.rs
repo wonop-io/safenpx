@@ -82,6 +82,8 @@ pub enum ExtractionErrorReason {
     UnsafeLink,
     /// Archive entry type is outside the static inspection surface.
     UnsupportedEntry,
+    /// Extraction root was not empty before extraction began.
+    NonEmptyExtractionRoot,
     /// Required package metadata was missing.
     MissingPackageJson,
     /// Package metadata could not be parsed.
@@ -100,6 +102,7 @@ pub fn extract_verified_root_artifact(
             format!("could not create extraction root: {error}"),
         )
     })?;
+    reject_non_empty_extraction_root(extraction_root)?;
 
     let decoder = GzDecoder::new(Cursor::new(tarball_bytes));
     let mut archive = Archive::new(decoder);
@@ -169,6 +172,24 @@ pub fn extract_verified_root_artifact(
         extraction_root: extraction_root.to_path_buf(),
         metadata,
     })
+}
+
+/// Reject extraction into roots that already contain filesystem state.
+fn reject_non_empty_extraction_root(extraction_root: &Path) -> Result<(), ExtractionError> {
+    let mut entries = fs::read_dir(extraction_root).map_err(|error| {
+        ExtractionError::new(
+            ExtractionErrorReason::InvalidArchive,
+            format!("could not read extraction root: {error}"),
+        )
+    })?;
+    if entries.next().is_some() {
+        return Err(ExtractionError::new(
+            ExtractionErrorReason::NonEmptyExtractionRoot,
+            "extraction root must be empty before inspection",
+        ));
+    }
+
+    Ok(())
 }
 
 /// Write a regular archive entry with validated relative path.
