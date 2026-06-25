@@ -18,6 +18,8 @@ mod closure_blockers;
 mod contracts;
 /// Root tarball byte downloader.
 mod download;
+/// M2 executable byte identity for selected bins and generated shims.
+mod executable_identity;
 /// Safe static extraction of verified root artifacts.
 mod extraction;
 #[cfg(test)]
@@ -53,6 +55,7 @@ pub use closure::*;
 pub use closure_blockers::*;
 pub use contracts::*;
 pub use download::*;
+pub use executable_identity::*;
 pub use extraction::*;
 pub use fixtures::*;
 pub use inspect::*;

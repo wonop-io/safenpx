@@ -25,6 +25,7 @@ rust_library(
         "src/download.rs",
         "src/extraction.rs",
         "src/extraction_tests.rs",
+        "src/executable_identity.rs",
         "src/fixtures.rs",
         "src/integrity.rs",
         "src/inspect.rs",
