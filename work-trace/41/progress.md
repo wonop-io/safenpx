@@ -13,3 +13,5 @@
   planning issue #41 plus the 14 planned execution-closure tickets.
 - Wrote `specs/m2-ticket-map.md` with acceptance coverage, issue list,
   dependencies, suggested order, and out-of-scope boundaries.
+- Ran focused plan review; fixed P2 findings by making #4's design note an
+  acceptance artifact and adding #45, #46, and #47 as dependencies for #51.

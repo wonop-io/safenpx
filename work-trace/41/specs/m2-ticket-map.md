@@ -33,7 +33,8 @@ M2 from `docs/milestones.md` requires:
 - #41: plan execution closure spike ticket map. This is the temporary planning
   issue used to create this map and should close before implementation begins.
 - #4: choose execution mechanism and prove byte identity. This is now the final
-  M2 decision record, dependent on evidence from the other M2 tickets.
+  M2 design note and decision record, dependent on evidence from the other M2
+  tickets.
 - #9: build no-package-code-ran canary harness. This remains an early security
   harness ticket.
 - #10: define bin selection and forwarded-argument fixtures. This remains the
@@ -80,6 +81,8 @@ After #41 closes:
 - #43 enables static package evidence extraction for #44, #10, #45, and #49.
 - #48 can start after #42 and #9, then grow as later M2 tickets add fixture
   kinds.
+- #51 should land after #45, #46, and #47 so output reason semantics are copied
+  from completed proof tickets rather than guessed early.
 - #4 should not close until the evidence tickets are complete; M5 execute-mode
   planning depends on its outcome.
 - #50 is intentionally P1 rather than P0 because pinned delegation may be
