@@ -25,6 +25,8 @@ mod fixtures;
 mod inspect;
 /// Root artifact integrity verifier.
 mod integrity;
+/// M2 closure fixture manifest support.
+mod m2_fixtures;
 /// Package spec parser.
 mod parser;
 /// Public npm registry metadata client.
@@ -45,6 +47,7 @@ pub use extraction::*;
 pub use fixtures::*;
 pub use inspect::*;
 pub use integrity::*;
+pub use m2_fixtures::*;
 pub use parser::*;
 pub use registry::*;
 pub use report::*;

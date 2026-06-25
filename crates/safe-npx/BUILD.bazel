@@ -27,6 +27,7 @@ rust_library(
         "src/integrity.rs",
         "src/inspect.rs",
         "src/lib.rs",
+        "src/m2_fixtures.rs",
         "src/parser.rs",
         "src/registry.rs",
         "src/report.rs",
@@ -36,6 +37,7 @@ rust_library(
     compile_data = [
         "fixtures/canary-fixture-manifest.txt",
         "fixtures/m1-fixture-manifest.txt",
+        "fixtures/m2-closure-fixture-manifest.txt",
         "fixtures/no-network-manifest.txt",
     ],
     crate_name = "safe_npx",

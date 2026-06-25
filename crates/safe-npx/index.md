@@ -8,6 +8,7 @@ This crate owns the `safe-npx` CLI.
 - Produce human-readable and JSON scaffold output.
 - Prove malformed and unsupported specs stop before network-capable hooks.
 - Maintain M1 fixtures for parser, registry, artifact, and no-network behavior.
+- Maintain M2 fixture manifests for closure traps and golden outcomes.
 - Grow into exact package resolution, integrity checks, package evidence extraction, lifecycle-script detection, policy decisions, and fail-closed execution refusal when byte identity cannot be proven.
 
 ## Bazel
