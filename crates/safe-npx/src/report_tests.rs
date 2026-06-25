@@ -2,11 +2,12 @@
 
 use crate::{
     build_m2_execution_refusal_report, build_m2_non_interactive_stop_report,
-    build_report_with_resolver, render_m2_execution_refusal_report, render_report, run, Cli,
-    ClosureCommandIdentity, Decision, M1Evidence, M2Reason, NpmMetadataClient,
-    RegistryHttpResponse, RegistryTransport, RegistryTransportError, RequiredNextAction,
-    RootArtifactResolver, TarballDownloader, TarballHttpResponse, TarballTransport,
-    TarballTransportError, M2_EXECUTION_REFUSED_EXIT_CODE,
+    build_report_with_resolver, render_m2_execution_refusal_report, render_report, run,
+    run_with_exit_code, Cli, ClosureCommandIdentity, Decision, M1Evidence, M2Reason,
+    NpmMetadataClient, RegistryHttpResponse, RegistryTransport, RegistryTransportError,
+    RequiredNextAction, RootArtifactResolver, TarballDownloader, TarballHttpResponse,
+    TarballTransport, TarballTransportError, M2_EXECUTION_REFUSED_EXIT_CODE,
+    M2_UNSUPPORTED_EXIT_CODE,
 };
 use base64::prelude::{Engine as _, BASE64_STANDARD};
 use clap::Parser;
@@ -280,16 +281,59 @@ fn renders_json_for_m2_execution_refusal_reasons() {
         let output = render_m2_execution_refusal_report(&cli, &report)
             .expect("m2 json rendering should succeed");
 
-        assert!(output.contains("\"decision\": \"execution_refused\""));
+        assert!(output.contains(&format!(
+            "\"decision\": \"{}\"",
+            expected_m2_decision_name(&reason)
+        )));
         assert!(output.contains(&format!("\"{}\"", expected_m2_reason_name(&reason))));
         assert!(output.contains("\"required_next_action\""));
         assert!(output.contains("\"execution\": null"));
         assert!(output.contains(&format!(
             "\"exit_code\": {}",
-            M2_EXECUTION_REFUSED_EXIT_CODE
+            expected_m2_exit_code(&reason)
         )));
         assert!(!output.contains("raw npx"));
     }
+}
+
+#[test]
+fn hidden_cli_m2_refusal_path_returns_stdout_and_exit_code() {
+    let cli = Cli::parse_from([
+        "safe-npx",
+        "--json",
+        "--m2-refusal",
+        "unsupported-closure",
+        "create-example@1.2.3",
+        "--",
+        "--template",
+        "react",
+    ]);
+    let output = run_with_exit_code(&cli).expect("cli m2 refusal path should render");
+
+    assert_eq!(output.exit_code, M2_EXECUTION_REFUSED_EXIT_CODE);
+    assert!(output
+        .stdout
+        .contains("\"decision\": \"execution_refused\""));
+    assert!(output.stdout.contains("\"unsupported_closure\""));
+    assert!(output.stdout.contains("\"forwarded_args\": ["));
+    assert!(output.stdout.contains("\"execution\": null"));
+}
+
+#[test]
+fn hidden_cli_m2_bin_refusal_preserves_unsupported_semantics() {
+    let cli = Cli::parse_from([
+        "safe-npx",
+        "--json",
+        "--m2-refusal",
+        "ambiguous-bin",
+        "create-example@1.2.3",
+    ]);
+    let output = run_with_exit_code(&cli).expect("cli m2 refusal path should render");
+
+    assert_eq!(output.exit_code, M2_UNSUPPORTED_EXIT_CODE);
+    assert!(output.stdout.contains("\"decision\": \"unsupported\""));
+    assert!(output.stdout.contains("\"ambiguous_bin\""));
+    assert!(output.stdout.contains("\"retry_narrower_command\""));
 }
 
 #[test]
@@ -311,7 +355,7 @@ fn retryable_bin_refusals_use_narrower_command_next_action() {
             report.required_next_action,
             RequiredNextAction::RetryNarrowerCommand
         );
-        assert_eq!(report.exit_code, M2_EXECUTION_REFUSED_EXIT_CODE);
+        assert_eq!(report.exit_code, M2_UNSUPPORTED_EXIT_CODE);
     }
 }
 
@@ -344,6 +388,29 @@ fn expected_m2_reason_name(reason: &M2Reason) -> &'static str {
         | M2Reason::NonInteractiveStop => {
             panic!("unexpected reason in issue 51 required coverage")
         }
+    }
+}
+
+fn expected_m2_decision_name(reason: &M2Reason) -> &'static str {
+    match reason {
+        M2Reason::AmbiguousBin | M2Reason::MissingBin => "unsupported",
+        M2Reason::UnsupportedClosure
+        | M2Reason::LifecycleScriptPresent
+        | M2Reason::RegistryPrecedenceMismatch
+        | M2Reason::CacheIdentityMismatch
+        | M2Reason::ShimIdentityMismatch => "execution_refused",
+        M2Reason::InteractiveApprovalRequired
+        | M2Reason::MetadataChanged
+        | M2Reason::NonInteractiveStop => {
+            panic!("unexpected reason in issue 51 required coverage")
+        }
+    }
+}
+
+fn expected_m2_exit_code(reason: &M2Reason) -> i32 {
+    match reason {
+        M2Reason::AmbiguousBin | M2Reason::MissingBin => M2_UNSUPPORTED_EXIT_CODE,
+        _ => M2_EXECUTION_REFUSED_EXIT_CODE,
     }
 }
 

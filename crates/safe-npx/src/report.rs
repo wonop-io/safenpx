@@ -11,6 +11,17 @@ use serde::Serialize;
 
 /// M2 exit code used when execution closure proof fails before package code can run.
 pub const M2_EXECUTION_REFUSED_EXIT_CODE: i32 = 5;
+/// M2 exit code used when the requested execution shape is unsupported.
+pub const M2_UNSUPPORTED_EXIT_CODE: i32 = 2;
+
+/// CLI output and process status.
+#[derive(Debug, PartialEq, Eq)]
+pub struct CliRunOutput {
+    /// Text that should be written to stdout.
+    pub stdout: String,
+    /// Process exit code that should be returned by the binary.
+    pub exit_code: i32,
+}
 
 /// Scaffold inspection report emitted for humans and agents.
 #[derive(Debug, PartialEq, Eq, Serialize)]
@@ -191,15 +202,16 @@ pub fn build_m2_execution_refusal_report(
     command: ClosureCommandIdentity,
     reasons: Vec<M2Reason>,
 ) -> M2ExecutionRefusalReport {
+    let decision = closure_decision_for_m2_reasons(&reasons);
     let required_next_action = required_next_action_for_m2_reasons(&reasons);
 
     M2ExecutionRefusalReport {
         command,
-        decision: ClosureDecision::ExecutionRefused,
+        decision: decision.clone(),
         reasons,
         required_next_action,
         execution: None,
-        exit_code: M2_EXECUTION_REFUSED_EXIT_CODE,
+        exit_code: exit_code_for_closure_decision(&decision),
     }
 }
 
@@ -233,6 +245,29 @@ pub fn render_m2_execution_refusal_report(
 pub fn run(cli: &Cli) -> anyhow::Result<String> {
     let report = build_report(cli);
     render_report(cli, &report)
+}
+
+/// Run the CLI and return stdout plus the process exit code.
+pub fn run_with_exit_code(cli: &Cli) -> anyhow::Result<CliRunOutput> {
+    if let Some(reason) = &cli.m2_refusal {
+        let report = build_m2_execution_refusal_report(
+            ClosureCommandIdentity {
+                requested: cli.raw_package_spec(),
+                forwarded_args: cli.forwarded_args(),
+            },
+            vec![M2Reason::from(reason.clone())],
+        );
+        let exit_code = report.exit_code;
+        return Ok(CliRunOutput {
+            stdout: render_m2_execution_refusal_report(cli, &report)?,
+            exit_code,
+        });
+    }
+
+    Ok(CliRunOutput {
+        stdout: run(cli)?,
+        exit_code: 0,
+    })
 }
 
 /// Render command intent for terminal output.
@@ -345,6 +380,47 @@ fn required_next_action_for_m2_reasons(reasons: &[M2Reason]) -> RequiredNextActi
     }
 
     RequiredNextAction::Unsupported
+}
+
+/// Return the completed-proof decision semantics for a set of M2 reasons.
+fn closure_decision_for_m2_reasons(reasons: &[M2Reason]) -> ClosureDecision {
+    if reasons
+        .iter()
+        .any(|reason| reason.refusal_decision() == ClosureDecision::ExecutionRefused)
+    {
+        return ClosureDecision::ExecutionRefused;
+    }
+    if reasons
+        .iter()
+        .any(|reason| reason.refusal_decision() == ClosureDecision::Unsupported)
+    {
+        return ClosureDecision::Unsupported;
+    }
+    if reasons
+        .iter()
+        .any(|reason| reason.refusal_decision() == ClosureDecision::InspectionError)
+    {
+        return ClosureDecision::InspectionError;
+    }
+    if reasons
+        .iter()
+        .any(|reason| reason.refusal_decision() == ClosureDecision::Deny)
+    {
+        return ClosureDecision::Deny;
+    }
+
+    ClosureDecision::Ask
+}
+
+/// Return the M2 fixture exit code for a closure decision.
+fn exit_code_for_closure_decision(decision: &ClosureDecision) -> i32 {
+    match decision {
+        ClosureDecision::Allow | ClosureDecision::Ask => 0,
+        ClosureDecision::Unsupported => M2_UNSUPPORTED_EXIT_CODE,
+        ClosureDecision::ExecutionRefused => M2_EXECUTION_REFUSED_EXIT_CODE,
+        ClosureDecision::Deny => 1,
+        ClosureDecision::InspectionError => 3,
+    }
 }
 
 /// Format M2 reasons as stable comma-separated names for terminal output.

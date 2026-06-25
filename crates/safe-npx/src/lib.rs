@@ -93,6 +93,10 @@ pub struct Cli {
     #[arg(long, value_enum, default_value_t = Decision::Ask)]
     pub decision: Decision,
 
+    /// Emit a deterministic M2 refusal report for fixture and contract tests.
+    #[arg(long, hide = true, value_enum)]
+    pub m2_refusal: Option<M2RefusalReason>,
+
     /// Command tokens, split into package spec and forwarded args at `--`.
     #[arg(
         required = true,
@@ -155,4 +159,41 @@ pub enum Decision {
     Ask,
     /// Deny execution after inspection.
     Deny,
+}
+
+/// Hidden M2 refusal fixture reason accepted by the CLI contract path.
+#[derive(Clone, Debug, PartialEq, Eq, ValueEnum)]
+pub enum M2RefusalReason {
+    /// Full dependency or execution closure cannot be proven.
+    UnsupportedClosure,
+    /// More than one package binary could match the command.
+    AmbiguousBin,
+    /// No package binary could be selected.
+    MissingBin,
+    /// Lifecycle script metadata blocks execution.
+    LifecycleScriptPresent,
+    /// Inspection and execution registry source would differ.
+    RegistryPrecedenceMismatch,
+    /// Prepared cache identity differs from inspected evidence.
+    CacheIdentityMismatch,
+    /// Generated shim identity differs from inspected evidence.
+    ShimIdentityMismatch,
+    /// Non-interactive mode must stop instead of prompting.
+    NonInteractiveStop,
+}
+
+impl From<M2RefusalReason> for M2Reason {
+    /// Convert a CLI fixture reason into the stable M2 reason vocabulary.
+    fn from(reason: M2RefusalReason) -> Self {
+        match reason {
+            M2RefusalReason::UnsupportedClosure => Self::UnsupportedClosure,
+            M2RefusalReason::AmbiguousBin => Self::AmbiguousBin,
+            M2RefusalReason::MissingBin => Self::MissingBin,
+            M2RefusalReason::LifecycleScriptPresent => Self::LifecycleScriptPresent,
+            M2RefusalReason::RegistryPrecedenceMismatch => Self::RegistryPrecedenceMismatch,
+            M2RefusalReason::CacheIdentityMismatch => Self::CacheIdentityMismatch,
+            M2RefusalReason::ShimIdentityMismatch => Self::ShimIdentityMismatch,
+            M2RefusalReason::NonInteractiveStop => Self::NonInteractiveStop,
+        }
+    }
 }
