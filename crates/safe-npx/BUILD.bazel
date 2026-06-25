@@ -19,6 +19,7 @@ rust_library(
     srcs = [
         "src/canary.rs",
         "src/closure.rs",
+        "src/closure_blockers.rs",
         "src/contracts.rs",
         "src/download.rs",
         "src/extraction.rs",
@@ -28,6 +29,7 @@ rust_library(
         "src/inspect.rs",
         "src/lib.rs",
         "src/m2_fixtures.rs",
+        "src/package_metadata.rs",
         "src/parser.rs",
         "src/registry.rs",
         "src/report.rs",

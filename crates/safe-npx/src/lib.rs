@@ -10,6 +10,8 @@ use serde::Serialize;
 mod canary;
 /// M2 execution closure evidence contracts.
 mod closure;
+/// M2 static closure blocker classification.
+mod closure_blockers;
 /// Shared M1 data contracts.
 mod contracts;
 /// Root tarball byte downloader.
@@ -27,6 +29,8 @@ mod inspect;
 mod integrity;
 /// M2 closure fixture manifest support.
 mod m2_fixtures;
+/// Package metadata parsing helpers for static extraction.
+mod package_metadata;
 /// Package spec parser.
 mod parser;
 /// Public npm registry metadata client.
@@ -41,6 +45,7 @@ mod resolver;
 
 pub use canary::*;
 pub use closure::*;
+pub use closure_blockers::*;
 pub use contracts::*;
 pub use download::*;
 pub use extraction::*;

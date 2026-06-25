@@ -4,7 +4,10 @@
 //! node, package binaries, lifecycle scripts, shell commands, or package
 //! managers.
 
-use crate::{ArtifactIdentity, DependencyDeclarationKind};
+use crate::{
+    package_metadata::{stringify_peer_dependency_metadata, PackageBundledDependencies},
+    ArtifactIdentity, DependencyDeclarationKind,
+};
 use flate2::read::GzDecoder;
 use serde::Deserialize;
 use std::collections::BTreeMap;
@@ -345,8 +348,12 @@ struct PackageJson {
     optional_dependencies: BTreeMap<String, String>,
     #[serde(rename = "peerDependencies", default)]
     peer_dependencies: BTreeMap<String, String>,
+    #[serde(rename = "peerDependenciesMeta", default)]
+    peer_dependencies_meta: BTreeMap<String, serde_json::Value>,
     #[serde(rename = "devDependencies", default)]
     dev_dependencies: BTreeMap<String, String>,
+    #[serde(rename = "bundleDependencies", alias = "bundledDependencies", default)]
+    bundled_dependencies: PackageBundledDependencies,
 }
 
 impl PackageJson {
@@ -377,8 +384,18 @@ impl PackageJson {
         );
         push_dependency_declarations(
             &mut dependency_declarations,
+            stringify_peer_dependency_metadata(self.peer_dependencies_meta),
+            DependencyDeclarationKind::PeerMetadata,
+        );
+        push_dependency_declarations(
+            &mut dependency_declarations,
             self.dev_dependencies,
             DependencyDeclarationKind::Development,
+        );
+        push_dependency_declarations(
+            &mut dependency_declarations,
+            self.bundled_dependencies.into_declarations(),
+            DependencyDeclarationKind::Bundled,
         );
 
         ExtractedPackageMetadata {
@@ -392,21 +409,16 @@ impl PackageJson {
     }
 }
 
-/// npm `bin` field shape.
 #[derive(Debug, Default, Deserialize)]
 #[serde(untagged)]
 enum PackageBin {
-    /// No `bin` declaration was present.
     #[default]
     Missing,
-    /// Single binary path using the package name as command name.
     Single(String),
-    /// Named binary map.
     Map(BTreeMap<String, String>),
 }
 
 impl PackageBin {
-    /// Convert npm `bin` metadata into a stable map.
     fn into_bins(self, package_name: Option<&str>) -> BTreeMap<String, String> {
         match self {
             Self::Missing => BTreeMap::new(),
@@ -419,7 +431,6 @@ impl PackageBin {
     }
 }
 
-/// Return the command name implied by a package-name `bin` string.
 fn package_bin_name(package_name: &str) -> String {
     package_name
         .rsplit('/')
@@ -428,12 +439,20 @@ fn package_bin_name(package_name: &str) -> String {
         .to_string()
 }
 
-/// Return true for lifecycle scripts that can run during install.
+const LIFECYCLE_SCRIPTS: &[&str] = &[
+    "preinstall",
+    "install",
+    "postinstall",
+    "prepare",
+    "prepublish",
+    "prepublishOnly",
+    "prepack",
+];
+
 fn is_lifecycle_script(name: &str) -> bool {
-    matches!(name, "preinstall" | "install" | "postinstall")
+    LIFECYCLE_SCRIPTS.contains(&name)
 }
 
-/// Append dependency metadata for one dependency map.
 fn push_dependency_declarations(
     declarations: &mut Vec<ExtractedDependencyDeclaration>,
     dependencies: BTreeMap<String, String>,

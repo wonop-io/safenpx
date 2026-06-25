@@ -1,6 +1,9 @@
 //! Tests for safe static root extraction.
 
-use crate::{extract_verified_root_artifact, ArtifactIdentity, ExtractionErrorReason};
+use crate::{
+    extract_verified_root_artifact, ArtifactIdentity, DependencyDeclarationKind,
+    ExtractionErrorReason,
+};
 use flate2::write::GzEncoder;
 use flate2::Compression;
 use std::fs;
@@ -51,6 +54,71 @@ fn extracts_normal_package_metadata_tied_to_artifact_identity() {
     assert_eq!(extracted.metadata.lifecycle_scripts.len(), 1);
     assert_eq!(extracted.metadata.dependency_declarations.len(), 1);
     assert!(workspace.path().join("package/package.json").exists());
+}
+
+#[test]
+/// Verifies lifecycle and dependency metadata are classified without execution.
+fn extracts_m2_lifecycle_and_dependency_surfaces() {
+    let workspace = TempRoot::new();
+    let tarball = tgz_with_files(&[(
+        "package/package.json",
+        r#"{
+            "name": "create-example",
+            "version": "1.2.3",
+            "scripts": {
+                "preinstall": "node preinstall.js",
+                "install": "node install.js",
+                "postinstall": "node postinstall.js",
+                "prepare": "node prepare.js",
+                "prepublish": "node prepublish.js",
+                "prepublishOnly": "node prepublish-only.js",
+                "prepack": "node prepack.js",
+                "test": "node test.js"
+            },
+            "dependencies": {"left-pad": "^1.3.0"},
+            "optionalDependencies": {"fsevents": "^2.3.0"},
+            "peerDependencies": {"react": "^18.0.0"},
+            "peerDependenciesMeta": {"react": {"optional": true}},
+            "devDependencies": {"ava": "^6.0.0"},
+            "bundleDependencies": ["bundled-tool"]
+        }"#,
+    )]);
+
+    let extracted = extract_verified_root_artifact(&tarball, artifact_identity(), workspace.path())
+        .expect("metadata package should extract");
+
+    assert_eq!(extracted.metadata.lifecycle_scripts.len(), 7);
+    assert!(!extracted.metadata.lifecycle_scripts.contains_key("test"));
+    assert_dependency(
+        &extracted.metadata.dependency_declarations,
+        "left-pad",
+        DependencyDeclarationKind::Runtime,
+    );
+    assert_dependency(
+        &extracted.metadata.dependency_declarations,
+        "fsevents",
+        DependencyDeclarationKind::Optional,
+    );
+    assert_dependency(
+        &extracted.metadata.dependency_declarations,
+        "react",
+        DependencyDeclarationKind::Peer,
+    );
+    assert_dependency(
+        &extracted.metadata.dependency_declarations,
+        "react",
+        DependencyDeclarationKind::PeerMetadata,
+    );
+    assert_dependency(
+        &extracted.metadata.dependency_declarations,
+        "ava",
+        DependencyDeclarationKind::Development,
+    );
+    assert_dependency(
+        &extracted.metadata.dependency_declarations,
+        "bundled-tool",
+        DependencyDeclarationKind::Bundled,
+    );
 }
 
 #[test]
@@ -286,6 +354,20 @@ fn scoped_artifact_identity() -> ArtifactIdentity {
         digest_algorithm: "sha512".to_string(),
         digest: "abc123".to_string(),
     }
+}
+
+/// Assert that dependency metadata contains a named declaration kind.
+fn assert_dependency(
+    declarations: &[crate::ExtractedDependencyDeclaration],
+    name: &str,
+    kind: DependencyDeclarationKind,
+) {
+    assert!(
+        declarations
+            .iter()
+            .any(|declaration| declaration.name == name && declaration.kind == kind),
+        "missing {kind:?} dependency declaration for {name}"
+    );
 }
 
 /// Temporary path for symlink-root tests.

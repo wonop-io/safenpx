@@ -139,10 +139,22 @@ pub enum DependencyDeclarationKind {
     Optional,
     /// `peerDependencies`.
     Peer,
+    /// `peerDependenciesMeta`.
+    PeerMetadata,
     /// `devDependencies`.
     Development,
     /// `bundleDependencies` or `bundledDependencies`.
     Bundled,
+}
+
+impl DependencyDeclarationKind {
+    /// Return true when M2 needs dependency closure proof for this declaration.
+    pub fn requires_m2_dependency_closure(&self) -> bool {
+        match self {
+            Self::Runtime | Self::Optional | Self::Peer | Self::Bundled => true,
+            Self::PeerMetadata | Self::Development => false,
+        }
+    }
 }
 
 /// Verified dependency artifact identity.
