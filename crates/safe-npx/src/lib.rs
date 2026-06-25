@@ -16,6 +16,7 @@ mod closure;
 mod closure_blockers;
 /// Shared M1 data contracts.
 mod contracts;
+#[cfg(test)]
 /// M2 direct-extract execution prototype for local fixture packages.
 mod direct_execution;
 /// Root tarball byte downloader.
@@ -39,6 +40,7 @@ mod m2_fixtures;
 mod package_metadata;
 /// Package spec parser.
 mod parser;
+#[cfg(test)]
 /// Reviewed process execution boundary.
 mod process_boundary;
 /// Deterministic M2 resolution-to-execution race fixtures.
@@ -60,7 +62,6 @@ pub use canary::*;
 pub use closure::*;
 pub use closure_blockers::*;
 pub use contracts::*;
-pub use direct_execution::*;
 pub use download::*;
 pub use executable_identity::*;
 pub use extraction::*;
@@ -69,7 +70,6 @@ pub use inspect::*;
 pub use integrity::*;
 pub use m2_fixtures::*;
 pub use parser::*;
-pub use process_boundary::*;
 pub use race_matrix::*;
 pub use registry::*;
 pub use registry_precedence::*;

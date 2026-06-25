@@ -2,11 +2,14 @@
 //!
 //! This module is intentionally fixture-only. It never invokes npm, npx,
 //! package-manager install commands, lifecycle scripts, or shell fallbacks.
+//! It is compiled only for tests so package-controlled marker files cannot
+//! enable production execution.
 
+use crate::process_boundary::ProcessInvocation;
 use crate::{
     assess_static_closure_blockers, identify_selected_bin, select_package_bin,
     ClosureCommandIdentity, ClosureDecision, CommandIntent, ExecutableFileIdentity,
-    ExtractedRootArtifact, M2Reason, PackageSpecParse, ProcessInvocation,
+    ExtractedRootArtifact, M2Reason, PackageSpecParse,
 };
 use serde::Serialize;
 use std::collections::BTreeMap;
@@ -155,7 +158,7 @@ pub fn execute_local_fixture_package(
         cwd: root.clone(),
         environment: environment.variables.clone(),
     };
-    let output = crate::run_direct_process(&invocation);
+    let output = crate::process_boundary::run_direct_process(&invocation);
 
     match output {
         Ok(output) => DirectExecutionOutcome {
