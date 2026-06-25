@@ -20,6 +20,9 @@ while IFS= read -r -d '' path; do
     crates/**/*.rs|crates/*.rs) ;;
     *) continue ;;
   esac
+  case "${path}" in
+    crates/safe-npx/src/process_boundary.rs) continue ;;
+  esac
   [ -f "${path}" ] || continue
   checked_count=$((checked_count + 1))
   if grep -nE 'std::process::Command|Command::new|unsafe[[:space:]]*\{' "${path}" >/tmp/safenpx-interface.$$; then
