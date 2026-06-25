@@ -31,8 +31,8 @@ pub struct M2ClosureFixture {
     pub description: String,
     /// Expected M2 decision.
     pub expected_decision: ClosureDecision,
-    /// Expected M2 reason, or `None` for intentionally reason-free outcomes.
-    pub expected_reason: Option<M2Reason>,
+    /// Expected M2 reason.
+    pub expected_reason: M2Reason,
     /// Expected process exit code.
     pub expected_exit_code: i32,
     /// Expected sentinel behavior such as `no_execution`.
@@ -105,6 +105,18 @@ pub fn missing_m2_fixture_kinds(fixtures: &[M2ClosureFixture]) -> Vec<M2FixtureK
         .collect()
 }
 
+/// Return an actionable missing-kind failure message.
+pub fn missing_m2_fixture_kinds_message(missing: &[M2FixtureKind]) -> String {
+    let tokens = missing
+        .iter()
+        .map(M2FixtureKind::manifest_token)
+        .collect::<Vec<_>>()
+        .join(", ");
+    format!(
+        "missing required M2 fixture kind(s): {tokens}; add one manifest row for each missing kind"
+    )
+}
+
 /// Parse one M2 fixture row.
 fn parse_m2_fixture_line(line: &str) -> M2ClosureFixture {
     let fields = line.split('|').collect::<Vec<_>>();
@@ -134,6 +146,23 @@ fn required_field(value: &str, name: &str) -> String {
         "M2 fixture {name} field must not be empty"
     );
     value.to_string()
+}
+
+impl M2FixtureKind {
+    /// Return the manifest token for this fixture kind.
+    pub fn manifest_token(&self) -> &'static str {
+        match self {
+            Self::Canary => "canary",
+            Self::Bin => "bin",
+            Self::Lifecycle => "lifecycle",
+            Self::Dependency => "dependency",
+            Self::Registry => "registry",
+            Self::Race => "race",
+            Self::Cache => "cache",
+            Self::Shim => "shim",
+            Self::Closure => "closure",
+        }
+    }
 }
 
 /// Parse an M2 fixture kind.
@@ -166,18 +195,18 @@ fn parse_decision(value: &str) -> Option<ClosureDecision> {
 }
 
 /// Parse an M2 closure reason.
-fn parse_reason(value: &str) -> Option<Option<M2Reason>> {
+fn parse_reason(value: &str) -> Option<M2Reason> {
     match value {
-        "none" => Some(None),
-        "ambiguous_bin" => Some(Some(M2Reason::AmbiguousBin)),
-        "missing_bin" => Some(Some(M2Reason::MissingBin)),
-        "lifecycle_script_present" => Some(Some(M2Reason::LifecycleScriptPresent)),
-        "unsupported_closure" => Some(Some(M2Reason::UnsupportedClosure)),
-        "metadata_changed" => Some(Some(M2Reason::MetadataChanged)),
-        "cache_identity_mismatch" => Some(Some(M2Reason::CacheIdentityMismatch)),
-        "registry_precedence_mismatch" => Some(Some(M2Reason::RegistryPrecedenceMismatch)),
-        "shim_identity_mismatch" => Some(Some(M2Reason::ShimIdentityMismatch)),
-        "non_interactive_stop" => Some(Some(M2Reason::NonInteractiveStop)),
+        "interactive_approval_required" => Some(M2Reason::InteractiveApprovalRequired),
+        "ambiguous_bin" => Some(M2Reason::AmbiguousBin),
+        "missing_bin" => Some(M2Reason::MissingBin),
+        "lifecycle_script_present" => Some(M2Reason::LifecycleScriptPresent),
+        "unsupported_closure" => Some(M2Reason::UnsupportedClosure),
+        "metadata_changed" => Some(M2Reason::MetadataChanged),
+        "cache_identity_mismatch" => Some(M2Reason::CacheIdentityMismatch),
+        "registry_precedence_mismatch" => Some(M2Reason::RegistryPrecedenceMismatch),
+        "shim_identity_mismatch" => Some(M2Reason::ShimIdentityMismatch),
+        "non_interactive_stop" => Some(M2Reason::NonInteractiveStop),
         _ => None,
     }
 }
@@ -204,8 +233,8 @@ mod tests {
 
         assert!(
             missing.is_empty(),
-            "missing required M2 fixture kind(s): {:?}",
-            missing
+            "{}",
+            missing_m2_fixture_kinds_message(&missing)
         );
     }
 
@@ -217,14 +246,12 @@ mod tests {
             assert!(!fixture.description.is_empty(), "{}", fixture.id);
             assert!(fixture.expected_exit_code >= 0, "{}", fixture.id);
             assert!(fixture.expects_no_execution(), "{}", fixture.id);
-            if let Some(reason) = &fixture.expected_reason {
-                assert_eq!(
-                    reason.refusal_decision(),
-                    fixture.expected_decision,
-                    "{}",
-                    fixture.id
-                );
-            }
+            assert_eq!(
+                fixture.expected_reason.refusal_decision(),
+                fixture.expected_decision,
+                "{}",
+                fixture.id
+            );
         }
     }
 
@@ -247,6 +274,10 @@ mod tests {
                 M2FixtureKind::Shim,
                 M2FixtureKind::Closure
             ]
+        );
+        assert_eq!(
+            missing_m2_fixture_kinds_message(&missing_m2_fixture_kinds(&fixtures)),
+            "missing required M2 fixture kind(s): bin, lifecycle, dependency, registry, race, cache, shim, closure; add one manifest row for each missing kind"
         );
     }
 

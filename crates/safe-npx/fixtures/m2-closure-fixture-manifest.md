@@ -33,6 +33,8 @@ For each new row:
 - Use a stable lowercase id.
 - Pick the narrowest fixture kind.
 - Set the expected decision and reason from the M2 closure vocabulary.
+- Do not use reason-free rows; positive `ask` fixtures use
+  `interactive_approval_required`.
 - Set the expected exit code that callers should eventually expose.
 - Use `no_execution` unless a test consumes a more specific sentinel.
 - Add or update a test that consumes the row when the subsystem exists.

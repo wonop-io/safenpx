@@ -2,7 +2,7 @@
 # format: id|kind|description|expected_decision|expected_reason|expected_exit_code|sentinel
 root_binary|canary|root package binary trap must not run during inspection|execution_refused|non_interactive_stop|5|no_execution
 network_attempt|canary|network attempt trap is detected without package-code execution|execution_refused|non_interactive_stop|5|no_execution
-single_bin|bin|single deterministic package bin can be selected for closure proof|ask|none|0|no_execution
+single_bin|bin|single deterministic package bin can be selected for closure proof|ask|interactive_approval_required|0|no_execution
 ambiguous_bin|bin|ambiguous package bin selection fails closed before execution|unsupported|ambiguous_bin|2|no_execution
 lifecycle_postinstall|lifecycle|postinstall lifecycle script blocks execution closure|execution_refused|lifecycle_script_present|5|no_execution
 dependency_runtime|dependency|declared runtime dependency is not executable proof until verified|execution_refused|unsupported_closure|5|no_execution

@@ -178,6 +178,8 @@ pub enum ClosureDecision {
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum M2Reason {
+    /// Verified evidence is ready for an interactive human approval prompt.
+    InteractiveApprovalRequired,
     /// More than one binary could match the command.
     AmbiguousBin,
     /// No executable binary could be selected.
@@ -202,6 +204,7 @@ impl M2Reason {
     /// Return the conservative decision associated with this closure reason.
     pub fn refusal_decision(&self) -> ClosureDecision {
         match self {
+            Self::InteractiveApprovalRequired => ClosureDecision::Ask,
             Self::LifecycleScriptPresent
             | Self::UnsupportedClosure
             | Self::MetadataChanged
@@ -222,6 +225,7 @@ mod tests {
     #[test]
     fn m2_reasons_serialize_as_stable_snake_case() {
         let reasons = [
+            M2Reason::InteractiveApprovalRequired,
             M2Reason::AmbiguousBin,
             M2Reason::MissingBin,
             M2Reason::LifecycleScriptPresent,
@@ -236,6 +240,7 @@ mod tests {
         assert_eq!(
             serde_json::to_value(reasons).expect("M2 reasons should serialize"),
             serde_json::json!([
+                "interactive_approval_required",
                 "ambiguous_bin",
                 "missing_bin",
                 "lifecycle_script_present",
@@ -251,6 +256,10 @@ mod tests {
 
     #[test]
     fn reasons_map_to_conservative_refusal_decisions() {
+        assert_eq!(
+            M2Reason::InteractiveApprovalRequired.refusal_decision(),
+            ClosureDecision::Ask
+        );
         assert_eq!(
             M2Reason::UnsupportedClosure.refusal_decision(),
             ClosureDecision::ExecutionRefused
