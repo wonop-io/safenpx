@@ -1,7 +1,8 @@
 //! Tests for the M3 inspect-mode pipeline.
 
+use crate::report::exit_code_for_report;
 use crate::{
-    build_report_with_resolver, render_report, run, Cli, M1Evidence, NpmMetadataClient,
+    build_report_with_resolver, render_report, Cli, M1Evidence, NpmMetadataClient,
     RegistryHttpResponse, RegistryTransport, RegistryTransportError, RootArtifactResolver,
     TarballDownloader, TarballHttpResponse, TarballTransport, TarballTransportError,
 };
@@ -113,6 +114,7 @@ fn inspect_action_reports_extraction_failure_without_panic() {
     let cli = Cli::parse_from(["safe-npx", "inspect", "create-example@1.2.3"]);
     let report = build_report_with_resolver(&cli, &verified_resolver(b"not-a-tarball"));
 
+    assert_eq!(exit_code_for_report(&report), 3);
     let M1Evidence::Failed {
         reason,
         downloaded,
@@ -135,6 +137,7 @@ fn inspect_action_reports_integrity_failure_without_extraction() {
     let cli = Cli::parse_from(["safe-npx", "inspect", "create-example@1.2.3"]);
     let report = build_report_with_resolver(&cli, &resolver);
 
+    assert_eq!(exit_code_for_report(&report), 4);
     let M1Evidence::Failed {
         reason,
         downloaded,
@@ -173,11 +176,13 @@ fn inspect_action_reports_m2_closure_blockers_as_static_metadata() {
 /// Unsupported inspect specs stop before any network download.
 fn inspect_action_keeps_unsupported_specs_before_downloads() {
     let cli = Cli::parse_from(["safe-npx", "inspect", "create-example@latest"]);
-    let output = run(&cli).expect("unsupported inspect should render");
+    let report = build_report_with_resolver(&cli, &verified_resolver(b"unused"));
+    let output = render_report(&cli, &report).expect("unsupported inspect should render");
 
     assert!(output.contains("Rejected: create-example@latest"));
     assert!(output.contains("Reason: unsupported_spec"));
     assert!(output.contains("Downloaded: false"));
+    assert_eq!(exit_code_for_report(&report), 2);
 }
 
 /// Render a report through the supplied resolver.

@@ -305,10 +305,25 @@ pub fn run_with_exit_code(cli: &Cli) -> anyhow::Result<CliRunOutput> {
         });
     }
 
+    let report = build_report(cli);
+    let exit_code = exit_code_for_report(&report);
     Ok(CliRunOutput {
-        stdout: run(cli)?,
-        exit_code: 0,
+        stdout: render_report(cli, &report)?,
+        exit_code,
     })
+}
+
+/// Return the process exit code implied by the current report.
+pub(crate) fn exit_code_for_report(report: &Report) -> i32 {
+    match &report.m1 {
+        M1Evidence::Verified { .. } => 0,
+        M1Evidence::NoDownload { .. } => 2,
+        M1Evidence::Failed { reason, .. } => match reason {
+            M1Reason::IntegrityMismatch => 4,
+            M1Reason::UnsupportedSpec | M1Reason::MalformedSpec => 2,
+            M1Reason::RegistryError | M1Reason::MissingPackage | M1Reason::MissingVersion => 3,
+        },
+    }
 }
 
 /// Render command intent for terminal output.
