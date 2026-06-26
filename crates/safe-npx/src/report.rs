@@ -1,11 +1,15 @@
 //! Human and JSON M1 report rendering.
 
+use crate::m2_report::{
+    closure_decision_for_m2_reasons, closure_decision_name, exit_code_for_closure_decision,
+    format_m2_reasons, required_next_action_for_m2_reasons, required_next_action_name,
+};
 use crate::{
-    inspect_raw_spec_with_probe, ArtifactIdentity, Cli, ClosureCommandIdentity, ClosureDecision,
-    CommandIntent, CountingProbe, Decision, M1Reason, M2Reason, NpmMetadataClient,
-    PackageSpecParse, RegistryTransport, ReqwestRegistryTransport, ReqwestTarballTransport,
-    ResolvedPackage, RootArtifactResolver, TarballDownloader, TarballTransport,
-    UnsupportedSpecCategory,
+    extract_for_inspect, inspect_raw_spec_with_probe, render_static_extraction, ArtifactIdentity,
+    Cli, ClosureCommandIdentity, ClosureDecision, CommandIntent, CountingProbe, Decision, M1Reason,
+    M2Reason, NpmMetadataClient, PackageSpecParse, RegistryTransport, ReqwestRegistryTransport,
+    ReqwestTarballTransport, ResolvedPackage, RootArtifactResolver, StaticExtractionEvidence,
+    TarballDownloader, TarballTransport, UnsupportedSpecCategory,
 };
 use serde::Serialize;
 
@@ -59,6 +63,9 @@ pub enum M1Evidence {
         integrity_status: &'static str,
         /// Verified digest identity for the exact root artifact bytes.
         artifact_identity: ArtifactIdentity,
+        /// Static extraction evidence collected from verified bytes.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        static_extraction: Option<StaticExtractionEvidence>,
     },
     /// Registry, download, or integrity work failed before execution.
     Failed {
@@ -137,14 +144,40 @@ pub fn build_report_with_resolver<M: RegistryTransport, D: TarballTransport>(
     let intent = inspect_raw_spec_with_probe(&raw_package_spec, cli.forwarded_args(), &mut probe);
     let (recommendation, m1) = match &intent.package_spec {
         PackageSpecParse::Supported(package_spec) => match resolver.resolve(package_spec) {
-            Ok(verified) => (
-                cli.decision.clone(),
-                M1Evidence::Verified {
-                    resolved_package: verified.resolved_package,
-                    integrity_status: "verified",
-                    artifact_identity: verified.artifact_identity,
-                },
-            ),
+            Ok(verified) => {
+                if cli.is_inspect_action() {
+                    match extract_for_inspect(&verified.artifact_bytes, &verified.artifact_identity)
+                    {
+                        Ok(static_extraction) => (
+                            cli.decision.clone(),
+                            M1Evidence::Verified {
+                                resolved_package: verified.resolved_package,
+                                integrity_status: "verified",
+                                artifact_identity: verified.artifact_identity,
+                                static_extraction: Some(static_extraction),
+                            },
+                        ),
+                        Err(error) => (
+                            Decision::Ask,
+                            M1Evidence::Failed {
+                                reason: M1Reason::RegistryError,
+                                downloaded: true,
+                                detail: format!("static extraction failed: {}", error.detail),
+                            },
+                        ),
+                    }
+                } else {
+                    (
+                        cli.decision.clone(),
+                        M1Evidence::Verified {
+                            resolved_package: verified.resolved_package,
+                            integrity_status: "verified",
+                            artifact_identity: verified.artifact_identity,
+                            static_extraction: None,
+                        },
+                    )
+                }
+            }
             Err(error) => {
                 let downloaded = error.reason == M1Reason::IntegrityMismatch;
                 (
@@ -177,8 +210,16 @@ pub fn build_report_with_resolver<M: RegistryTransport, D: TarballTransport>(
         package_spec: raw_package_spec,
         intent,
         recommendation,
-        status: "m1_evidence",
-        note: "M1 resolves and verifies the root artifact only; dependency graphs, lifecycle scripts, maintainer reputation, and policy scoring are not implemented yet.",
+        status: if cli.is_inspect_action() {
+            "m3_inspect"
+        } else {
+            "m1_evidence"
+        },
+        note: if cli.is_inspect_action() {
+            "M3 inspect resolves, verifies, statically extracts package metadata, and stops before package code can run."
+        } else {
+            "M1 resolves and verifies the root artifact only; dependency graphs, lifecycle scripts, maintainer reputation, and policy scoring are not implemented yet."
+        },
         m1,
     }
 }
@@ -307,8 +348,9 @@ fn render_evidence(m1: &M1Evidence) -> String {
             resolved_package,
             integrity_status,
             artifact_identity,
+            static_extraction,
         } => format!(
-            "M1 evidence: verified\nResolved: {}@{}\nRegistry: {}\nTarball: {}\nIntegrity: {}\nIntegrity metadata: {}\nDigest: {}:{}\n",
+            "M1 evidence: verified\nResolved: {}@{}\nRegistry: {}\nTarball: {}\nIntegrity: {}\nIntegrity metadata: {}\nDigest: {}:{}\n{}",
             resolved_package.name,
             resolved_package.version,
             resolved_package.registry.url,
@@ -316,7 +358,8 @@ fn render_evidence(m1: &M1Evidence) -> String {
             integrity_status,
             resolved_package.integrity,
             artifact_identity.digest_algorithm,
-            artifact_identity.digest
+            artifact_identity.digest,
+            render_static_extraction(static_extraction.as_ref())
         ),
         M1Evidence::Failed {
             reason,
@@ -331,7 +374,7 @@ fn render_evidence(m1: &M1Evidence) -> String {
     }
 }
 
-/// Format forwarded args for terminal output.
+/// Format forwarded CLI arguments for human output.
 fn format_forwarded_args(args: &[String]) -> String {
     if args.is_empty() {
         return "[]".to_string();
@@ -340,7 +383,7 @@ fn format_forwarded_args(args: &[String]) -> String {
     args.join(" ")
 }
 
-/// Return the stable serialized reason name for human output.
+/// Return the stable serialized name for an M1 reason.
 fn reason_name(reason: &M1Reason) -> &'static str {
     match reason {
         M1Reason::UnsupportedSpec => "unsupported_spec",
@@ -352,7 +395,7 @@ fn reason_name(reason: &M1Reason) -> &'static str {
     }
 }
 
-/// Return the stable serialized unsupported category name for human output.
+/// Return the stable serialized name for an unsupported spec category.
 fn unsupported_category_name(category: &UnsupportedSpecCategory) -> &'static str {
     match category {
         UnsupportedSpecCategory::UnversionedName => "unversioned_name",
@@ -364,110 +407,5 @@ fn unsupported_category_name(category: &UnsupportedSpecCategory) -> &'static str
         UnsupportedSpecCategory::MultipleSpecs => "multiple_specs",
         UnsupportedSpecCategory::NpmExecVariant => "npm_exec_variant",
         UnsupportedSpecCategory::Other => "other",
-    }
-}
-
-/// Return the next action implied by M2 refusal reasons.
-fn required_next_action_for_m2_reasons(reasons: &[M2Reason]) -> RequiredNextAction {
-    if reasons.contains(&M2Reason::AmbiguousBin) || reasons.contains(&M2Reason::MissingBin) {
-        return RequiredNextAction::RetryNarrowerCommand;
-    }
-    if reasons.contains(&M2Reason::NonInteractiveStop) {
-        return RequiredNextAction::AskUser;
-    }
-    if reasons.contains(&M2Reason::UnsupportedClosure) {
-        return RequiredNextAction::InspectOnly;
-    }
-
-    RequiredNextAction::Unsupported
-}
-
-/// Return the completed-proof decision semantics for a set of M2 reasons.
-fn closure_decision_for_m2_reasons(reasons: &[M2Reason]) -> ClosureDecision {
-    if reasons
-        .iter()
-        .any(|reason| reason.refusal_decision() == ClosureDecision::ExecutionRefused)
-    {
-        return ClosureDecision::ExecutionRefused;
-    }
-    if reasons
-        .iter()
-        .any(|reason| reason.refusal_decision() == ClosureDecision::Unsupported)
-    {
-        return ClosureDecision::Unsupported;
-    }
-    if reasons
-        .iter()
-        .any(|reason| reason.refusal_decision() == ClosureDecision::InspectionError)
-    {
-        return ClosureDecision::InspectionError;
-    }
-    if reasons
-        .iter()
-        .any(|reason| reason.refusal_decision() == ClosureDecision::Deny)
-    {
-        return ClosureDecision::Deny;
-    }
-
-    ClosureDecision::Ask
-}
-
-/// Return the M2 fixture exit code for a closure decision.
-fn exit_code_for_closure_decision(decision: &ClosureDecision) -> i32 {
-    match decision {
-        ClosureDecision::Allow | ClosureDecision::Ask => 0,
-        ClosureDecision::Unsupported => M2_UNSUPPORTED_EXIT_CODE,
-        ClosureDecision::ExecutionRefused => M2_EXECUTION_REFUSED_EXIT_CODE,
-        ClosureDecision::Deny => 1,
-        ClosureDecision::InspectionError => 3,
-    }
-}
-
-/// Format M2 reasons as stable comma-separated names for terminal output.
-fn format_m2_reasons(reasons: &[M2Reason]) -> String {
-    reasons
-        .iter()
-        .map(m2_reason_name)
-        .collect::<Vec<_>>()
-        .join(", ")
-}
-
-/// Return the stable serialized name for an M2 decision.
-fn closure_decision_name(decision: &ClosureDecision) -> &'static str {
-    match decision {
-        ClosureDecision::Allow => "allow",
-        ClosureDecision::Ask => "ask",
-        ClosureDecision::Deny => "deny",
-        ClosureDecision::Unsupported => "unsupported",
-        ClosureDecision::InspectionError => "inspection_error",
-        ClosureDecision::ExecutionRefused => "execution_refused",
-    }
-}
-
-/// Return the stable serialized name for an M2 reason.
-fn m2_reason_name(reason: &M2Reason) -> &'static str {
-    match reason {
-        M2Reason::InteractiveApprovalRequired => "interactive_approval_required",
-        M2Reason::AmbiguousBin => "ambiguous_bin",
-        M2Reason::MissingBin => "missing_bin",
-        M2Reason::LifecycleScriptPresent => "lifecycle_script_present",
-        M2Reason::UnsupportedClosure => "unsupported_closure",
-        M2Reason::MetadataChanged => "metadata_changed",
-        M2Reason::CacheIdentityMismatch => "cache_identity_mismatch",
-        M2Reason::RegistryPrecedenceMismatch => "registry_precedence_mismatch",
-        M2Reason::ShimIdentityMismatch => "shim_identity_mismatch",
-        M2Reason::NonInteractiveStop => "non_interactive_stop",
-    }
-}
-
-/// Return the stable serialized name for a next action.
-fn required_next_action_name(action: &RequiredNextAction) -> &'static str {
-    match action {
-        RequiredNextAction::None => "none",
-        RequiredNextAction::AskUser => "ask_user",
-        RequiredNextAction::RetryNarrowerCommand => "retry_narrower_command",
-        RequiredNextAction::InspectOnly => "inspect_only",
-        RequiredNextAction::ExplicitOverride => "explicit_override",
-        RequiredNextAction::Unsupported => "unsupported",
     }
 }

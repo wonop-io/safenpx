@@ -9,7 +9,7 @@ use crate::{
     ArtifactIdentity, DependencyDeclarationKind,
 };
 use flate2::read::GzDecoder;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::fs;
 use std::io::{Cursor, Read};
@@ -28,7 +28,7 @@ pub struct ExtractedRootArtifact {
 }
 
 /// Package metadata needed by M2 static closure checks.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 pub struct ExtractedPackageMetadata {
     /// Package name from `package.json`.
     pub name: Option<String>,
@@ -45,7 +45,7 @@ pub struct ExtractedPackageMetadata {
 }
 
 /// Dependency declaration read from package metadata.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 pub struct ExtractedDependencyDeclaration {
     /// Dependency name.
     pub name: String,

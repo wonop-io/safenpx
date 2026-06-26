@@ -38,6 +38,13 @@ mod inspect;
 mod integrity;
 /// M2 closure fixture manifest support.
 mod m2_fixtures;
+/// M2 execution-refusal report helpers.
+mod m2_report;
+/// M3 inspect-mode static extraction pipeline.
+mod m3_inspect;
+#[cfg(test)]
+/// Tests for the M3 inspect-mode pipeline.
+mod m3_inspect_tests;
 /// Package metadata parsing helpers for static extraction.
 mod package_metadata;
 /// Package spec parser.
@@ -72,6 +79,7 @@ pub use fixtures::*;
 pub use inspect::*;
 pub use integrity::*;
 pub use m2_fixtures::*;
+pub use m3_inspect::*;
 pub use parser::*;
 pub use race_matrix::*;
 pub use registry::*;
@@ -128,19 +136,31 @@ impl Cli {
 
         self.command
             .iter()
+            .skip(self.action_token_count())
             .skip_while(|token| token.as_str() != "--")
             .skip(1)
             .cloned()
             .collect()
     }
 
+    /// Return true when the caller selected the explicit M3 inspect action.
+    pub fn is_inspect_action(&self) -> bool {
+        self.command.first().map(String::as_str) == Some("inspect")
+    }
+
     /// Return command tokens before the forwarded-args separator.
     fn spec_tokens(&self) -> Vec<String> {
         self.command
             .iter()
+            .skip(self.action_token_count())
             .take_while(|token| token.as_str() != "--")
             .cloned()
             .collect()
+    }
+
+    /// Return the number of leading action tokens before the package spec.
+    fn action_token_count(&self) -> usize {
+        usize::from(self.is_inspect_action())
     }
 
     /// Return true when the raw command is an unsupported npm/npx exec shape.

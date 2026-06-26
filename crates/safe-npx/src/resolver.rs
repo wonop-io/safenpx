@@ -13,6 +13,8 @@ pub struct VerifiedRootArtifact {
     pub resolved_package: ResolvedPackage,
     /// Verified identity for the exact downloaded root artifact bytes.
     pub artifact_identity: ArtifactIdentity,
+    /// Exact tarball bytes verified by `artifact_identity`.
+    pub artifact_bytes: Vec<u8>,
 }
 
 /// Error returned by end-to-end root artifact resolution.
@@ -99,6 +101,7 @@ impl<M: RegistryTransport, D: TarballTransport> RootArtifactResolver<M, D> {
         Ok(VerifiedRootArtifact {
             resolved_package,
             artifact_identity,
+            artifact_bytes: artifact_bytes.bytes,
         })
     }
 }
@@ -217,6 +220,7 @@ mod tests {
         assert_eq!(verified.artifact_identity.integrity, integrity);
         assert_eq!(verified.artifact_identity.digest_algorithm, "sha512");
         assert_eq!(verified.artifact_identity.digest, hex_sha512(&bytes));
+        assert_eq!(verified.artifact_bytes, bytes);
         assert_eq!(counters.snapshot(), [0, 0, 0, 0, 0]);
     }
 
