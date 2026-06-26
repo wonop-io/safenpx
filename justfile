@@ -46,6 +46,12 @@ issue-start ISSUE:
 issue-done ISSUE:
     tools/github/issue-done.sh "{{ISSUE}}"
 
+latency-fixture:
+    cargo test -p safe-npx measure_fixture_inspect_latency -- --ignored --nocapture
+
+latency-live PACKAGE="is-number@7.0.0":
+    /usr/bin/time -p cargo run -q -p safe-npx -- inspect "{{PACKAGE}}"
+
 test: check
 
 tests: test

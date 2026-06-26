@@ -12,5 +12,6 @@ exports_files([
     ".github/workflows/ci.yml",
     "docs/inspect-first-poc.md",
     "docs/inspect-json-schema-v0.md",
+    "docs/inspect-latency-budgets.md",
     "justfile",
 ])

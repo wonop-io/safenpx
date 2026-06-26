@@ -51,6 +51,11 @@ mod inspect_json_schema;
 #[cfg(test)]
 /// Tests for the M3 inspect JSON schema.
 mod inspect_json_schema_tests;
+/// Provisional M3 inspect latency budgets and phase evidence.
+mod inspect_latency;
+#[cfg(test)]
+/// Optional local fixture latency measurement for M3 inspect mode.
+mod inspect_latency_tests;
 /// Shared M3 inspect evidence model.
 mod inspect_model;
 #[cfg(test)]
@@ -122,6 +127,7 @@ pub use extraction::*;
 pub use fixtures::*;
 pub use inspect::*;
 pub use inspect_json_schema::*;
+pub use inspect_latency::*;
 pub use inspect_model::*;
 pub use inspect_receipt::*;
 pub use integrity::*;

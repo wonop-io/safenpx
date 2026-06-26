@@ -32,6 +32,8 @@ rust_library(
         "src/fixtures.rs",
         "src/inspect_golden_fixtures.rs",
         "src/inspect_human_golden_tests.rs",
+        "src/inspect_latency.rs",
+        "src/inspect_latency_tests.rs",
         "src/inspect_json_schema.rs",
         "src/inspect_json_golden_tests.rs",
         "src/inspect_json_schema_tests.rs",

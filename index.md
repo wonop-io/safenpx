@@ -36,6 +36,8 @@ This is the first AI-facing index for `safe-npx`. Keep it short and load child i
 - `docs/inspect-first-poc.md`: M3 inspect workflow, supported command shapes,
   limits, redaction, and schema compatibility.
 - `docs/inspect-json-schema-v0.md`: M3 JSON contract for agents and CI.
+- `docs/inspect-latency-budgets.md`: provisional M3 inspect latency budgets and
+  fixture/live measurement commands.
 - `docs/handle-reservation.md`: npm and crates.io package handle status.
 - `CONTRIBUTING.md`: public contributor workflow.
 - `SECURITY.md`: security disclosure process.

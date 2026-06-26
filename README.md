@@ -68,6 +68,8 @@ The first release should:
 - `docs/inspect-first-poc.md`: M3 inspect workflow, supported command shapes,
   limits, redaction, and schema compatibility.
 - `docs/inspect-json-schema-v0.md`: agent and CI JSON output contract.
+- `docs/inspect-latency-budgets.md`: provisional M3 inspect latency budgets and
+  measurement commands.
 - `docs/public-benefit-plan.md`: OSS, test corpus, and ecosystem benefit plan.
 - `docs/roadmap.md`: public roadmap.
 - `docs/one-year-vision.md`: one-year product and architecture vision.
