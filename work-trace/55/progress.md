@@ -9,3 +9,8 @@
   and JSON rendering.
 - Added integrity-failure canary coverage so inspect failure rendering also
   leaves package-code sentinels absent.
+- Prior-commit red review found the network and dependency canaries were too
+  weak and the failure path stopped before extraction.
+- Strengthened network trap payloads, made the dependency lifecycle trap a
+  local file dependency, and added verified malformed-metadata extraction
+  failure coverage.

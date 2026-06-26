@@ -1,10 +1,10 @@
 //! Canary carryover tests for the M3 inspect-mode pipeline.
 
 use crate::{
-    build_report_with_resolver, canary_fixtures, render_report, CanaryFixture, CanaryTrapKind, Cli,
-    M1Evidence, NpmMetadataClient, RegistryHttpResponse, RegistryTransport, RegistryTransportError,
-    RootArtifactResolver, TarballDownloader, TarballHttpResponse, TarballTransport,
-    TarballTransportError,
+    build_report_with_resolver, canary_fixtures, render_report, CanaryFixture,
+    CanaryNetworkExpectation, CanaryTrapKind, Cli, M1Evidence, NpmMetadataClient,
+    RegistryHttpResponse, RegistryTransport, RegistryTransportError, RootArtifactResolver,
+    TarballDownloader, TarballHttpResponse, TarballTransport, TarballTransportError,
 };
 use base64::prelude::{Engine as _, BASE64_STANDARD};
 use clap::Parser;
@@ -80,6 +80,13 @@ fn inspect_failure_output_leaves_canary_sentinels_absent() {
     assert_inspect_failure_leaves_canary_sentinels_absent(RenderMode::Json);
 }
 
+#[test]
+/// Extraction failure rendering leaves every package-code canary sentinel absent.
+fn inspect_extraction_failure_output_leaves_canary_sentinels_absent() {
+    assert_inspect_extraction_failure_leaves_canary_sentinels_absent(RenderMode::Human);
+    assert_inspect_extraction_failure_leaves_canary_sentinels_absent(RenderMode::Json);
+}
+
 /// Render mode exercised by canary carryover tests.
 #[derive(Clone, Copy, Debug)]
 enum RenderMode {
@@ -130,6 +137,7 @@ fn assert_inspect_output_leaves_canary_sentinels_absent(render_mode: RenderMode)
             fixture.id,
             fixture.trap_kind
         );
+        assert_network_expectation_is_represented(&fixture);
     }
 }
 
@@ -164,6 +172,54 @@ fn assert_inspect_failure_leaves_canary_sentinels_absent(render_mode: RenderMode
             "{} {:?} should render the integrity failure",
             fixture.id,
             fixture.trap_kind
+        );
+    }
+}
+
+/// Assert post-download extraction failures do not trip any bundled canary.
+fn assert_inspect_extraction_failure_leaves_canary_sentinels_absent(render_mode: RenderMode) {
+    let workspace = CanaryTempRoot::new();
+
+    for fixture in canary_fixtures() {
+        let sentinel = fixture.sentinel_path(workspace.path());
+        let tarball = canary_package_tarball_with_malformed_metadata(&fixture, &sentinel);
+        let cli = Cli::parse_from(render_mode.cli_args());
+        let report = build_report_with_resolver(&cli, &verified_resolver(&tarball));
+        let output =
+            render_report(&cli, &report).expect("inspect extraction failure should render");
+
+        assert!(
+            matches!(report.m1, M1Evidence::Failed { .. }),
+            "{} {:?} should fail during static extraction",
+            fixture.id,
+            fixture.trap_kind
+        );
+        assert!(
+            !sentinel.exists(),
+            "{} {:?} created sentinel {:?} during {:?} extraction failure",
+            fixture.id,
+            fixture.trap_kind,
+            sentinel,
+            render_mode
+        );
+        assert!(
+            output.contains("static extraction failed"),
+            "{} {:?} should render extraction failure details",
+            fixture.id,
+            fixture.trap_kind
+        );
+        assert_network_expectation_is_represented(&fixture);
+    }
+}
+
+/// Assert network-attempt fixtures carry the expected local network signal.
+fn assert_network_expectation_is_represented(fixture: &CanaryFixture) {
+    if fixture.trap_kind == CanaryTrapKind::NetworkAttempt {
+        assert_eq!(
+            fixture.network_expectation,
+            CanaryNetworkExpectation::DetectedWithoutExecution,
+            "{} should preserve the network-attempt canary expectation",
+            fixture.id
         );
     }
 }
@@ -218,18 +274,44 @@ fn integrity_for(bytes: &[u8]) -> String {
 
 /// Build a local package tarball that contains one canary trap surface.
 fn canary_package_tarball(fixture: &CanaryFixture, sentinel: &Path) -> Vec<u8> {
+    canary_package_tarball_with(fixture, sentinel, PackageJsonMode::Valid)
+}
+
+/// Build a canary tarball with malformed package metadata.
+fn canary_package_tarball_with_malformed_metadata(
+    fixture: &CanaryFixture,
+    sentinel: &Path,
+) -> Vec<u8> {
+    canary_package_tarball_with(fixture, sentinel, PackageJsonMode::Malformed)
+}
+
+/// Package metadata mode for extraction-failure canaries.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum PackageJsonMode {
+    /// Valid package metadata with canary trap surfaces.
+    Valid,
+    /// Malformed package metadata that fails static extraction.
+    Malformed,
+}
+
+/// Build a local package tarball with selected package metadata.
+fn canary_package_tarball_with(
+    fixture: &CanaryFixture,
+    sentinel: &Path,
+    package_json_mode: PackageJsonMode,
+) -> Vec<u8> {
     let mut gzip = GzEncoder::new(Vec::new(), Compression::default());
     {
         let mut builder = Builder::new(&mut gzip);
         append_file(
             &mut builder,
             "package/package.json",
-            package_json_for(fixture).as_bytes(),
+            package_json_for(fixture, package_json_mode).as_bytes(),
         );
         append_file(
             &mut builder,
             trap_file_path(fixture),
-            trap_payload(sentinel).as_bytes(),
+            trap_payload(fixture, sentinel).as_bytes(),
         );
         if fixture.trap_kind == CanaryTrapKind::DependencyLifecycle {
             append_file(
@@ -244,7 +326,11 @@ fn canary_package_tarball(fixture: &CanaryFixture, sentinel: &Path) -> Vec<u8> {
 }
 
 /// Return package metadata that would execute a trap if install or bin ran.
-fn package_json_for(fixture: &CanaryFixture) -> String {
+fn package_json_for(fixture: &CanaryFixture, mode: PackageJsonMode) -> String {
+    if mode == PackageJsonMode::Malformed {
+        return "{".to_string();
+    }
+
     match fixture.trap_kind {
         CanaryTrapKind::RootBinary => {
             r#"{"name":"create-example","version":"1.2.3","bin":{"create-example":"bin/root-binary.js"}}"#.to_string()
@@ -259,7 +345,7 @@ fn package_json_for(fixture: &CanaryFixture) -> String {
             r#"{"name":"create-example","version":"1.2.3","scripts":{"postinstall":"node traps/root-postinstall.js"}}"#.to_string()
         }
         CanaryTrapKind::DependencyLifecycle => {
-            r#"{"name":"create-example","version":"1.2.3","dependencies":{"canary-dep":"1.0.0"}}"#.to_string()
+            r#"{"name":"create-example","version":"1.2.3","dependencies":{"canary-dep":"file:node_modules/canary-dep"}}"#.to_string()
         }
         CanaryTrapKind::GeneratedShim => {
             r#"{"name":"create-example","version":"1.2.3","bin":{"create-example":"node_modules/.bin/create-example"}}"#.to_string()
@@ -290,9 +376,15 @@ fn trap_file_path(fixture: &CanaryFixture) -> &'static str {
 }
 
 /// Return JavaScript that would create the sentinel if package code ran.
-fn trap_payload(sentinel: &Path) -> String {
+fn trap_payload(fixture: &CanaryFixture, sentinel: &Path) -> String {
     let sentinel_json =
         serde_json::to_string(&sentinel.display().to_string()).expect("path should serialize");
+    if fixture.trap_kind == CanaryTrapKind::NetworkAttempt {
+        return format!(
+            "require('http').get('http://127.0.0.1:9/safe-npx-canary').on('error', function() {{}});\nrequire('fs').writeFileSync({sentinel_json}, 'network trap ran');\n"
+        );
+    }
+
     format!("require('fs').writeFileSync({sentinel_json}, 'trap ran');\n")
 }
 
