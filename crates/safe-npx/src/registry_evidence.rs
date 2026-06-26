@@ -91,7 +91,9 @@ pub fn build_registry_evidence(
         name: resolved_package.name.clone(),
         version: resolved_package.version.clone(),
         publish_time: publish_time(root_metadata, &resolved_package.version),
-        maintainers: people_array(root_metadata.get("maintainers")),
+        maintainers: people_array(root_metadata.get("maintainers"))
+            .or_else(|| people_array(version_metadata.get("maintainers")))
+            .unwrap_or_default(),
         publisher: person(version_metadata.get("_npmUser")),
         repository: repository(version_metadata).or_else(|| repository(root_metadata)),
         license: optional_string(version_metadata.get("license"))
@@ -114,16 +116,13 @@ fn publish_time(root_metadata: &Value, version: &str) -> Option<String> {
 }
 
 /// Extract an array of person objects or strings.
-fn people_array(value: Option<&Value>) -> Vec<RegistryPerson> {
-    value
-        .and_then(Value::as_array)
-        .map(|people| {
-            people
-                .iter()
-                .filter_map(|entry| person(Some(entry)))
-                .collect()
-        })
-        .unwrap_or_default()
+fn people_array(value: Option<&Value>) -> Option<Vec<RegistryPerson>> {
+    value.and_then(Value::as_array).map(|people| {
+        people
+            .iter()
+            .filter_map(|entry| person(Some(entry)))
+            .collect()
+    })
 }
 
 /// Extract one person from npm object or string forms.
@@ -181,6 +180,7 @@ fn provenance_fields(dist: &Value) -> BTreeMap<String, String> {
         .into_iter()
         .filter_map(|field| {
             dist.get(field)
+                .filter(|value| matches!(value, Value::Array(_) | Value::Object(_)))
                 .and_then(|value| serde_json::to_string(value).ok())
                 .map(|value| (format!("dist.{field}"), value))
         })
@@ -270,14 +270,37 @@ mod tests {
     /// Verifies malformed optional metadata is ignored without failure.
     fn malformed_optional_metadata_is_ignored() {
         let root = json(r#"{"time": [], "maintainers": "nobody", "license": {"bad": true}}"#);
-        let version = json(r#"{"_npmUser": [], "repository": 12, "license": []}"#);
-        let evidence = evidence(&root, &version, &dist_json(), package_spec(None));
+        let version =
+            json(r#"{"_npmUser": [], "repository": 12, "license": [], "maintainers": "nobody"}"#);
+        let dist = json(
+            r#"{
+                "integrity": "sha512-fixture",
+                "tarball": "https://registry.npmjs.org/create-example/-/create-example-1.2.3.tgz",
+                "provenance": null,
+                "attestations": "bad",
+                "signatures": 12
+            }"#,
+        );
+        let evidence = evidence(&root, &version, &dist, package_spec(None));
 
         assert_eq!(evidence.publish_time, None);
         assert!(evidence.maintainers.is_empty());
         assert_eq!(evidence.publisher, None);
         assert_eq!(evidence.repository, None);
         assert_eq!(evidence.license, None);
+        assert!(evidence.provenance.is_empty());
+    }
+
+    #[test]
+    /// Verifies version-level maintainers are used when root metadata omits them.
+    fn version_maintainers_are_used_when_root_omits_them() {
+        let version = json(r#"{"maintainers": [{"name": "Version Maintainer"}]}"#);
+        let evidence = evidence(&json("{}"), &version, &dist_json(), package_spec(None));
+
+        assert_eq!(
+            evidence.maintainers[0].name,
+            Some("Version Maintainer".to_string())
+        );
     }
 
     /// Build registry evidence from fixture values.
