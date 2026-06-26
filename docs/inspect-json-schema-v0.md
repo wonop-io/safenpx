@@ -34,7 +34,10 @@ The V0 top-level object contains:
 - `exit_code`
 
 `external_evidence`, `attestations`, and `release_diff` are reserved and null in
-V0. `execution` is null for inspect mode.
+V0. M3 does not query a hosted audit registry, fetch third-party attestations,
+or compute release-diff evidence for these fields. A non-null value requires a
+later schema change with documented provenance and failure semantics. `execution`
+is null for inspect mode.
 
 During the `0.1` transition, JSON output also includes additive legacy fields so
 existing callers can migrate without losing evidence paths:

@@ -5,6 +5,7 @@ use crate::inspect_golden_fixtures::{
     static_blockers_report,
 };
 use crate::{render_report, Cli, Report};
+use serde_json::Value;
 use std::path::{Path, PathBuf};
 
 const INTEGRITY_FAILURE_GOLDEN: &str =
@@ -71,6 +72,38 @@ fn redacted_authority_golden_hides_secret_and_host_inputs() {
             !output.contains(forbidden),
             "redacted authority output leaked {forbidden}"
         );
+    }
+}
+
+/// Verifies expanded fixture outputs keep future hosted evidence fields null.
+#[test]
+fn expanded_json_golden_fixtures_keep_reserved_fields_null() {
+    for (name, fixture) in [
+        (
+            "inspect-json-schema-v0-integrity-failure.json",
+            INTEGRITY_FAILURE_GOLDEN,
+        ),
+        (
+            "inspect-json-schema-v0-static-blockers.json",
+            STATIC_BLOCKERS_GOLDEN,
+        ),
+        (
+            "inspect-json-schema-v0-redacted-authority.json",
+            REDACTED_AUTHORITY_GOLDEN,
+        ),
+        (
+            "inspect-json-schema-v0-missing-optional-metadata.json",
+            MISSING_OPTIONAL_METADATA_GOLDEN,
+        ),
+    ] {
+        let value: Value = serde_json::from_str(fixture).expect("fixture should parse");
+        for field in ["external_evidence", "attestations", "release_diff"] {
+            assert_eq!(
+                value.get(field),
+                Some(&Value::Null),
+                "{name} must keep {field} present and null"
+            );
+        }
     }
 }
 

@@ -50,9 +50,7 @@ fn inspect_json_schema_has_required_top_level_shape() {
     assert_eq!(value["schema_version"], "0.1");
     assert_eq!(value["decision"], "ask");
     assert_eq!(value["required_next_action"], "ask_user");
-    assert_eq!(value["external_evidence"], Value::Null);
-    assert_eq!(value["attestations"], Value::Null);
-    assert_eq!(value["release_diff"], Value::Null);
+    assert_reserved_fields_are_null(&value);
     assert_eq!(value["execution"], Value::Null);
     assert_eq!(value["exit_code"], 0);
 }
@@ -67,6 +65,7 @@ fn unsupported_json_uses_m3_decision_and_retry_action() {
     assert_eq!(value["schema_version"], "0.1");
     assert_eq!(value["decision"], "unsupported");
     assert_eq!(value["required_next_action"], "retry_narrower_command");
+    assert_reserved_fields_are_null(&value);
     assert_eq!(value["execution"], Value::Null);
     assert!(value["facts"]["refusal"].is_object());
 }
@@ -80,6 +79,7 @@ fn failed_inspection_json_uses_inspection_error_decision() {
 
     assert_eq!(value["decision"], "inspection_error");
     assert_eq!(value["required_next_action"], "inspect_only");
+    assert_reserved_fields_are_null(&value);
     assert_eq!(value["execution"], Value::Null);
     assert_eq!(value["exit_code"], 3);
 }
@@ -101,9 +101,24 @@ fn execution_refusal_json_uses_m3_schema_envelope() {
     assert_eq!(value["required_next_action"], "inspect_only");
     assert_eq!(value["execution"], Value::Null);
     assert!(value.get("authority_context").is_some());
-    assert!(value.get("external_evidence").is_some());
-    assert!(value.get("attestations").is_some());
-    assert!(value.get("release_diff").is_some());
+    assert_reserved_fields_are_null(&value);
+}
+
+/// Verifies checked-in base fixtures keep future hosted evidence fields null.
+#[test]
+fn base_schema_fixtures_keep_reserved_fields_null() {
+    for (name, fixture) in [
+        ("inspect-json-schema-v0-ask.json", ASK_GOLDEN),
+        (
+            "inspect-json-schema-v0-unsupported.json",
+            UNSUPPORTED_GOLDEN,
+        ),
+        ("inspect-json-schema-v0-failure.json", FAILURE_GOLDEN),
+    ] {
+        let value: Value = serde_json::from_str(fixture).expect("fixture should parse");
+        assert_reserved_fields_are_null(&value);
+        assert_eq!(value["execution"], Value::Null, "{name}");
+    }
 }
 
 /// Verifies enum spelling stays aligned with `docs/milestones.md`.
@@ -245,6 +260,17 @@ fn semantic_case(value: impl Serialize) -> Value {
         "required_next_action": value["required_next_action"],
         "exit_code": value["exit_code"],
     })
+}
+
+/// Assert the hosted-evidence fields are reserved and unpopulated in V0.
+fn assert_reserved_fields_are_null(value: &Value) {
+    for field in ["external_evidence", "attestations", "release_diff"] {
+        assert_eq!(
+            value.get(field),
+            Some(&Value::Null),
+            "{field} must be present and null in V0"
+        );
+    }
 }
 
 /// Renders a schema golden with a single trailing newline.

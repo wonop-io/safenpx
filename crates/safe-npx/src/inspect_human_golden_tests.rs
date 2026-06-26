@@ -86,6 +86,34 @@ fn redacted_authority_human_golden_hides_secret_and_host_inputs() {
     }
 }
 
+/// Verifies human reports do not claim future hosted evidence checks.
+#[test]
+fn human_golden_fixtures_do_not_claim_reserved_evidence_checks() {
+    let cli = Cli::parse_from(["safe-npx", "create-example@1.2.3"]);
+    for output in [
+        render_human_golden(&cli, &normal_report()),
+        render_human_golden(&cli, &static_blockers_report()),
+        render_human_golden(&cli, &unsupported_report()),
+        render_human_golden(&cli, &missing_optional_metadata_report()),
+        render_human_golden(&cli, &redacted_authority_report()),
+        render_human_golden(&cli, &integrity_failure_report()),
+    ] {
+        let lower = output.to_ascii_lowercase();
+        for reserved_claim in [
+            "hosted audit",
+            "external_evidence",
+            "attestation",
+            "release diff",
+            "release-diff",
+        ] {
+            assert!(
+                !lower.contains(reserved_claim),
+                "human report implied reserved evidence check: {reserved_claim}"
+            );
+        }
+    }
+}
+
 /// Renders a report through the public human report path with a trailing newline.
 fn render_human_golden(cli: &Cli, report: &Report) -> String {
     format!(
