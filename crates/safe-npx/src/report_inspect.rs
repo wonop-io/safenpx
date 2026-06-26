@@ -4,7 +4,7 @@ use crate::{
     render_static_extraction, CommandIntent, Decision, InspectAuthorityContext, InspectDecision,
     InspectExecutionState, InspectExecutionStateKind, InspectFacts, InspectHeuristic,
     InspectHeuristicKind, InspectModel, InspectNextAction, InspectRefusalFact, InspectRefusalState,
-    M1Evidence, M1Reason, PackageSpecParse, RegistrySource, UnsupportedSpecCategory,
+    M1Evidence, M1Reason, PackageSpecParse, RegistrySource, SourceContext, UnsupportedSpecCategory,
 };
 
 /// Build the shared inspect model from current report facts.
@@ -12,6 +12,7 @@ pub(crate) fn build_inspect_model(
     intent: &CommandIntent,
     recommendation: &Decision,
     m1: &M1Evidence,
+    source_context: &SourceContext,
 ) -> InspectModel {
     let (facts, execution_state) = match m1 {
         M1Evidence::NoDownload { reason, downloaded } => (
@@ -72,7 +73,7 @@ pub(crate) fn build_inspect_model(
     InspectModel {
         heuristics: inspect_heuristics(&facts),
         decision: inspect_decision(recommendation, &facts),
-        authority_context: inspect_authority_context(&facts),
+        authority_context: inspect_authority_context(&facts, source_context),
         execution_state: InspectExecutionState {
             state: execution_state,
             package_code_executed: false,
@@ -154,10 +155,11 @@ pub(crate) fn render_model_facts(model: &InspectModel) -> String {
 /// Render shared decision, authority, execution, and heuristic model fields.
 pub(crate) fn render_model_summary(model: &InspectModel) -> String {
     format!(
-        "Decision reasons: {}\nRequired next action: {}\nAuthority: command={}, registry={}, package_scope={}\nExecution: {}; package code executed: {}\n{}",
+        "Decision reasons: {}\nRequired next action: {}\nAuthority: command={}, source_context={}, registry={}, package_scope={}\nExecution: {}; package code executed: {}\n{}",
         model.inspect_decision_reasons(),
         next_action_name(&model.decision.required_next_action),
         model.authority_context.command_intent,
+        source_context_name(&model.authority_context.source_context),
         model
             .authority_context
             .registry_source
@@ -271,8 +273,11 @@ fn inspect_decision(recommendation: &Decision, facts: &InspectFacts) -> InspectD
     }
 }
 
-/// Build initial authority context; #12 and #60 refine this later.
-fn inspect_authority_context(facts: &InspectFacts) -> InspectAuthorityContext {
+/// Build initial authority context; #12 refines redaction later.
+fn inspect_authority_context(
+    facts: &InspectFacts,
+    source_context: &SourceContext,
+) -> InspectAuthorityContext {
     let registry_source = facts
         .registry
         .as_ref()
@@ -291,6 +296,7 @@ fn inspect_authority_context(facts: &InspectFacts) -> InspectAuthorityContext {
 
     InspectAuthorityContext {
         command_intent: facts.command.requested.clone(),
+        source_context: source_context.clone(),
         registry_source,
         package_scope,
     }
@@ -328,6 +334,17 @@ fn heuristic_kind_name(kind: &InspectHeuristicKind) -> &'static str {
         InspectHeuristicKind::LifecycleScriptsPresent => "lifecycle_scripts_present",
         InspectHeuristicKind::DependencyDeclarationsPresent => "dependency_declarations_present",
         InspectHeuristicKind::UnusualPackageShape => "unusual_package_shape",
+    }
+}
+
+/// Return the stable serialized name for a caller-declared source context.
+fn source_context_name(source_context: &SourceContext) -> &'static str {
+    match source_context {
+        SourceContext::ManualTerminal => "manual_terminal",
+        SourceContext::DocsSnippet => "docs_snippet",
+        SourceContext::AgentSkill => "agent_skill",
+        SourceContext::Ci => "ci",
+        SourceContext::Unknown => "unknown",
     }
 }
 

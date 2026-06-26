@@ -215,7 +215,7 @@ pub fn build_report_with_resolver<M: RegistryTransport, D: TarballTransport>(
         ),
     };
 
-    let inspect = build_inspect_model(&intent, &recommendation, &m1);
+    let inspect = build_inspect_model(&intent, &recommendation, &m1, &cli.source_context);
 
     Report {
         package_spec: raw_package_spec,

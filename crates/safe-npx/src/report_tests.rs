@@ -10,7 +10,6 @@ use crate::{
     M2_UNSUPPORTED_EXIT_CODE,
 };
 use base64::prelude::{Engine as _, BASE64_STANDARD};
-use clap::Parser;
 use sha2::{Digest, Sha512};
 use std::cell::RefCell;
 

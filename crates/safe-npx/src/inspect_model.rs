@@ -2,7 +2,7 @@
 
 use crate::{
     ArtifactIdentity, CommandIntent, Decision, M1Reason, RegistryEvidence, RegistrySource,
-    ResolvedPackage, StaticExtractionEvidence,
+    ResolvedPackage, SourceContext, StaticExtractionEvidence,
 };
 use serde::Serialize;
 
@@ -120,6 +120,8 @@ pub enum InspectNextAction {
 pub struct InspectAuthorityContext {
     /// Raw command/package intent.
     pub command_intent: String,
+    /// Caller-declared source context, or unknown when undeclared.
+    pub source_context: SourceContext,
     /// Selected registry source when known.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub registry_source: Option<RegistrySource>,

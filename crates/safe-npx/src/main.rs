@@ -1,4 +1,3 @@
-use clap::Parser;
 use safe_npx::{run_with_exit_code, Cli};
 
 /// Parse arguments and print the scaffold report.

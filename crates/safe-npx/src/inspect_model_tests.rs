@@ -3,11 +3,10 @@
 use crate::{
     build_report_with_resolver, render_report, Cli, InspectExecutionStateKind,
     InspectHeuristicKind, NpmMetadataClient, RegistryHttpResponse, RegistryTransport,
-    RegistryTransportError, RootArtifactResolver, TarballDownloader, TarballHttpResponse,
-    TarballTransport, TarballTransportError,
+    RegistryTransportError, RootArtifactResolver, SourceContext, TarballDownloader,
+    TarballHttpResponse, TarballTransport, TarballTransportError,
 };
 use base64::prelude::{Engine as _, BASE64_STANDARD};
-use clap::Parser;
 use flate2::{write::GzEncoder, Compression};
 use sha2::{Digest, Sha512};
 use std::cell::RefCell;
@@ -197,6 +196,123 @@ fn human_renderer_preserves_failed_refusal_state_from_shared_model() {
     assert!(human.contains("M1 evidence: failed"));
     assert!(human.contains("Reason: integrity_mismatch"));
     assert!(!human.contains("M1 evidence: no_download"));
+}
+
+#[test]
+fn source_context_defaults_to_unknown_without_inference() {
+    let cli = Cli::parse_from(["safe-npx", "inspect", "create-example@latest"]);
+    let report = build_report_with_resolver(&cli, &resolver_with(b"unused".to_vec()));
+    let human = render_report(&cli, &report).expect("human report should render");
+
+    assert_eq!(
+        report.inspect.authority_context.source_context,
+        SourceContext::Unknown
+    );
+    assert!(human.contains("source_context=unknown"));
+}
+
+#[test]
+fn source_context_categories_render_in_human_and_json_reports() {
+    let cases = [
+        ("manual_terminal", SourceContext::ManualTerminal),
+        ("docs_snippet", SourceContext::DocsSnippet),
+        ("agent_skill", SourceContext::AgentSkill),
+        ("ci", SourceContext::Ci),
+        ("unknown", SourceContext::Unknown),
+    ];
+
+    for (value, expected) in cases {
+        let cli = Cli::parse_from([
+            "safe-npx",
+            "--source-context",
+            value,
+            "inspect",
+            "create-example@latest",
+        ]);
+        let report = build_report_with_resolver(&cli, &resolver_with(b"unused".to_vec()));
+        let human = render_report(&cli, &report).expect("human report should render");
+
+        assert_eq!(report.inspect.authority_context.source_context, expected);
+        assert!(human.contains(&format!("source_context={value}")));
+
+        let json_cli = Cli::parse_from([
+            "safe-npx",
+            "--json",
+            "--source-context",
+            value,
+            "inspect",
+            "create-example@latest",
+        ]);
+        let json_report = build_report_with_resolver(&json_cli, &resolver_with(b"unused".to_vec()));
+        let json = render_report(&json_cli, &json_report).expect("json report should render");
+
+        assert!(json.contains(&format!("\"source_context\": \"{value}\"")));
+    }
+}
+
+#[test]
+fn source_context_after_inspect_action_is_still_caller_declared() {
+    let cli = Cli::parse_from([
+        "safe-npx",
+        "inspect",
+        "--source-context",
+        "ci",
+        "create-example@latest",
+    ]);
+    let report = build_report_with_resolver(&cli, &resolver_with(b"unused".to_vec()));
+    let human = render_report(&cli, &report).expect("human report should render");
+
+    assert_eq!(
+        report.inspect.authority_context.source_context,
+        SourceContext::Ci
+    );
+    assert_eq!(cli.raw_package_spec(), "create-example@latest");
+    assert!(human.contains("source_context=ci"));
+}
+
+#[test]
+fn source_context_after_inspect_action_supports_equals_syntax() {
+    let cli = Cli::parse_from([
+        "safe-npx",
+        "inspect",
+        "--source-context=agent_skill",
+        "create-example@latest",
+    ]);
+    let report = build_report_with_resolver(&cli, &resolver_with(b"unused".to_vec()));
+
+    assert_eq!(
+        report.inspect.authority_context.source_context,
+        SourceContext::AgentSkill
+    );
+    assert_eq!(cli.raw_package_spec(), "create-example@latest");
+}
+
+#[test]
+fn invalid_source_context_fails_closed_at_cli_parse_time() {
+    let error = Cli::try_parse_from([
+        "safe-npx",
+        "--source-context",
+        "guessed_terminal",
+        "inspect",
+        "create-example@latest",
+    ])
+    .expect_err("invalid source context should not parse");
+
+    assert_eq!(error.kind(), clap::error::ErrorKind::InvalidValue);
+}
+
+#[test]
+fn invalid_source_context_after_inspect_fails_closed_at_cli_parse_time() {
+    let error = Cli::try_parse_from([
+        "safe-npx",
+        "inspect",
+        "--source-context",
+        "guessed_terminal",
+        "create-example@latest",
+    ])
+    .expect_err("invalid source context should not parse after inspect");
+
+    assert_eq!(error.kind(), clap::error::ErrorKind::InvalidValue);
 }
 
 fn inspect_report(tarball: &[u8]) -> crate::Report {

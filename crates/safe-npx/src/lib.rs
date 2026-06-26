@@ -5,6 +5,7 @@
 
 use clap::{Parser, ValueEnum};
 use serde::Serialize;
+use std::ffi::OsString;
 
 /// Deterministic M2 package bin selection.
 mod bin_selection;
@@ -121,6 +122,10 @@ pub struct Cli {
     #[arg(long, value_enum, default_value_t = Decision::Ask)]
     pub decision: Decision,
 
+    /// Caller-declared source context. Defaults to unknown; safe-npx does not infer intent.
+    #[arg(long, value_enum, default_value_t = SourceContext::Unknown)]
+    pub source_context: SourceContext,
+
     /// Emit a deterministic M2 refusal report for fixture and contract tests.
     #[arg(long, hide = true, value_enum)]
     pub m2_refusal: Option<M2RefusalReason>,
@@ -136,6 +141,33 @@ pub struct Cli {
 }
 
 impl Cli {
+    /// Parse process arguments after normalizing inspect-local source context.
+    pub fn parse() -> Self {
+        Self::parse_from(std::env::args_os())
+    }
+
+    /// Parse provided arguments after normalizing inspect-local source context.
+    pub fn parse_from<I, T>(args: I) -> Self
+    where
+        I: IntoIterator<Item = T>,
+        T: Into<OsString>,
+    {
+        match Self::try_parse_from(args) {
+            Ok(cli) => cli,
+            Err(error) => error.exit(),
+        }
+    }
+
+    /// Try to parse provided arguments after normalizing inspect-local source context.
+    pub fn try_parse_from<I, T>(args: I) -> Result<Self, clap::Error>
+    where
+        I: IntoIterator<Item = T>,
+        T: Into<OsString>,
+    {
+        let normalized_args = normalize_inspect_source_context(args);
+        <Self as Parser>::try_parse_from(normalized_args)
+    }
+
     /// Return the raw package spec string that should be classified.
     pub fn raw_package_spec(&self) -> String {
         if self.is_exec_variant_command() {
@@ -186,6 +218,109 @@ impl Cli {
             self.command.first().map(String::as_str),
             Some("npm" | "npx" | "npm-exec")
         )
+    }
+}
+
+/// Normalize `safe-npx inspect --source-context VALUE pkg` before Clap parsing.
+fn normalize_inspect_source_context<I, T>(args: I) -> Vec<OsString>
+where
+    I: IntoIterator<Item = T>,
+    T: Into<OsString>,
+{
+    let mut args = args.into_iter().map(Into::into).collect::<Vec<_>>();
+    let Some(inspect_index) = first_command_index(&args) else {
+        return args;
+    };
+    if args.get(inspect_index).and_then(|arg| arg.to_str()) != Some("inspect") {
+        return args;
+    }
+
+    let mut cursor = inspect_index + 1;
+    while cursor < args.len() {
+        let Some(token) = args.get(cursor).and_then(|arg| arg.to_str()) else {
+            cursor += 1;
+            continue;
+        };
+        if token == "--" {
+            break;
+        }
+        if let Some(value) = token.strip_prefix("--source-context=") {
+            let value = OsString::from(value);
+            args.remove(cursor);
+            args.insert(inspect_index, value);
+            args.insert(inspect_index, OsString::from("--source-context"));
+            break;
+        }
+        if token == "--source-context" {
+            let value = if cursor + 1 < args.len() {
+                args.remove(cursor + 1)
+            } else {
+                OsString::new()
+            };
+            args.remove(cursor);
+            args.insert(inspect_index, value);
+            args.insert(inspect_index, OsString::from("--source-context"));
+            break;
+        }
+        cursor += 1;
+    }
+
+    args
+}
+
+/// Return the first command token after supported top-level options.
+fn first_command_index(args: &[OsString]) -> Option<usize> {
+    let mut index = 1;
+    while index < args.len() {
+        let token = args[index].to_str()?;
+        if token == "--" {
+            return None;
+        }
+        if token == "--json" || token == "--dry-run" {
+            index += 1;
+            continue;
+        }
+        if token == "--decision" || token == "--source-context" || token == "--m2-refusal" {
+            index += 2;
+            continue;
+        }
+        if token.starts_with("--decision=")
+            || token.starts_with("--source-context=")
+            || token.starts_with("--m2-refusal=")
+        {
+            index += 1;
+            continue;
+        }
+        return Some(index);
+    }
+
+    None
+}
+
+/// Caller-declared source context for an inspect request.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, ValueEnum)]
+#[serde(rename_all = "snake_case")]
+pub enum SourceContext {
+    /// Human-declared manual terminal invocation.
+    #[value(name = "manual_terminal")]
+    ManualTerminal,
+    /// Command copied or adapted from README, docs, blog, or tutorial text.
+    #[value(name = "docs_snippet")]
+    DocsSnippet,
+    /// Coding agent, skill, or playbook declared the request.
+    #[value(name = "agent_skill")]
+    AgentSkill,
+    /// CI workflow, job, or automation declared the request.
+    #[value(name = "ci")]
+    Ci,
+    /// No trusted source-context declaration was provided.
+    #[value(name = "unknown")]
+    Unknown,
+}
+
+impl Default for SourceContext {
+    fn default() -> Self {
+        Self::Unknown
     }
 }
 

@@ -7,7 +7,6 @@ use crate::{
     TarballDownloader, TarballHttpResponse, TarballTransport, TarballTransportError,
 };
 use base64::prelude::{Engine as _, BASE64_STANDARD};
-use clap::Parser;
 use flate2::{write::GzEncoder, Compression};
 use sha2::{Digest, Sha512};
 use std::cell::RefCell;
