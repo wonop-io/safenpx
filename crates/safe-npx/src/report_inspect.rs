@@ -1,10 +1,11 @@
 //! Shared inspect-model construction and human rendering helpers.
 
 use crate::{
-    render_static_extraction, CommandIntent, Decision, InspectAuthorityContext, InspectDecision,
-    InspectExecutionState, InspectExecutionStateKind, InspectFacts, InspectHeuristic,
-    InspectHeuristicKind, InspectModel, InspectNextAction, InspectRefusalFact, InspectRefusalState,
-    M1Evidence, M1Reason, PackageSpecParse, RegistrySource, SourceContext, UnsupportedSpecCategory,
+    build_authority_context, package_scope_for_parse, render_static_extraction, CommandIntent,
+    Decision, InspectAuthorityContext, InspectDecision, InspectExecutionState,
+    InspectExecutionStateKind, InspectFacts, InspectHeuristic, InspectHeuristicKind, InspectModel,
+    InspectNextAction, InspectRefusalFact, InspectRefusalState, M1Evidence, M1Reason,
+    PackageSpecParse, SourceContext, UnsupportedSpecCategory,
 };
 
 /// Build the shared inspect model from current report facts.
@@ -155,22 +156,29 @@ pub(crate) fn render_model_facts(model: &InspectModel) -> String {
 /// Render shared decision, authority, execution, and heuristic model fields.
 pub(crate) fn render_model_summary(model: &InspectModel) -> String {
     format!(
-        "Decision reasons: {}\nRequired next action: {}\nAuthority: command={}, source_context={}, registry={}, package_scope={}\nExecution: {}; package code executed: {}\n{}",
+        "Decision reasons: {}\nRequired next action: {}\nAuthority: command={}, source_context={}, runner={}, actor={}, cwd={} [{}], registry={}, package_scope={}\nAuthority boundary: {}\nExecution: {}; package code executed: {}\n{}",
         model.inspect_decision_reasons(),
         next_action_name(&model.decision.required_next_action),
-        model.authority_context.command_intent,
-        source_context_name(&model.authority_context.source_context),
+        model.authority_context.redacted.command_intent.display,
+        source_context_name(&model.authority_context.redacted.source_context),
+        runner_context_name(&model.authority_context.redacted.runner_context),
+        actor_context_name(&model.authority_context.redacted.actor_context),
+        model.authority_context.redacted.cwd.display,
+        model.authority_context.redacted.cwd.category,
         model
             .authority_context
-            .registry_source
+            .redacted
+            .registry
             .as_ref()
-            .map(format_registry_source)
+            .map(format_registry_context)
             .unwrap_or_else(|| "unknown".to_string()),
         model
             .authority_context
+            .redacted
             .package_scope
             .as_deref()
             .unwrap_or("unknown"),
+        model.authority_context.redacted.sandbox_boundary,
         execution_state_name(&model.execution_state.state),
         model.execution_state.package_code_executed,
         render_model_heuristics(model)
@@ -282,23 +290,14 @@ fn inspect_authority_context(
         .registry
         .as_ref()
         .map(|registry| registry.registry.clone());
-    let package_scope = match &facts.command.package_spec {
-        PackageSpecParse::Supported(package_spec) => Some(
-            package_spec
-                .scope
-                .as_ref()
-                .map(|_| "scoped")
-                .unwrap_or("unscoped")
-                .to_string(),
-        ),
-        PackageSpecParse::Unsupported(_) | PackageSpecParse::Malformed(_) => None,
-    };
 
     InspectAuthorityContext {
-        command_intent: facts.command.requested.clone(),
-        source_context: source_context.clone(),
-        registry_source,
-        package_scope,
+        redacted: build_authority_context(
+            &facts.command.requested,
+            source_context,
+            registry_source.as_ref(),
+            package_scope_for_parse(&facts.command.package_spec),
+        ),
     }
 }
 
@@ -348,13 +347,33 @@ fn source_context_name(source_context: &SourceContext) -> &'static str {
     }
 }
 
-/// Format a registry source without exposing it as proof of package contents.
-fn format_registry_source(registry: &RegistrySource) -> String {
+/// Return the stable serialized name for a runner context.
+fn runner_context_name(runner: &crate::AuthorityRunnerContext) -> &'static str {
+    match runner {
+        crate::AuthorityRunnerContext::LocalTerminal => "local_terminal",
+        crate::AuthorityRunnerContext::Ci => "ci",
+        crate::AuthorityRunnerContext::Agent => "agent",
+        crate::AuthorityRunnerContext::Unknown => "unknown",
+    }
+}
+
+/// Return the stable serialized name for an actor context.
+fn actor_context_name(actor: &crate::AuthorityActorContext) -> &'static str {
+    match actor {
+        crate::AuthorityActorContext::ManualUser => "manual_user",
+        crate::AuthorityActorContext::CodingAgent => "coding_agent",
+        crate::AuthorityActorContext::Automation => "automation",
+        crate::AuthorityActorContext::Unknown => "unknown",
+    }
+}
+
+/// Format a redacted registry context without exposing credentials.
+fn format_registry_context(registry: &crate::AuthorityRegistryContext) -> String {
     registry
         .scope
         .as_ref()
-        .map(|scope| format!("{} ({scope})", registry.url))
-        .unwrap_or_else(|| registry.url.clone())
+        .map(|scope| format!("{} ({scope})", registry.display_url))
+        .unwrap_or_else(|| registry.display_url.clone())
 }
 
 /// Format forwarded CLI arguments for human output.

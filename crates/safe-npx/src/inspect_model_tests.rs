@@ -1,10 +1,11 @@
 //! Tests for the shared M3 inspect evidence model.
 
 use crate::{
-    build_report_with_resolver, render_report, Cli, InspectExecutionStateKind,
-    InspectHeuristicKind, NpmMetadataClient, RegistryHttpResponse, RegistryTransport,
-    RegistryTransportError, RootArtifactResolver, SourceContext, TarballDownloader,
-    TarballHttpResponse, TarballTransport, TarballTransportError,
+    build_authority_context_with_paths, build_report_with_resolver, render_report,
+    AuthorityActorContext, AuthorityRegistryCategory, AuthorityRunnerContext, Cli,
+    InspectExecutionStateKind, InspectHeuristicKind, NpmMetadataClient, RegistryHttpResponse,
+    RegistrySource, RegistryTransport, RegistryTransportError, RootArtifactResolver, SourceContext,
+    TarballDownloader, TarballHttpResponse, TarballTransport, TarballTransportError,
 };
 use base64::prelude::{Engine as _, BASE64_STANDARD};
 use flate2::{write::GzEncoder, Compression};
@@ -170,6 +171,7 @@ fn human_and_json_renderers_consume_shared_model() {
     assert!(human.contains("Decision reasons: m3_heuristics_report_only"));
     assert!(human.contains("Required next action: ask_user"));
     assert!(human.contains("Authority: command=create-example@1.2.3"));
+    assert!(human.contains("Authority boundary: authority context describes ambient process authority; it is not sandboxing"));
     assert!(human.contains("Execution: stopped_before_execution; package code executed: false"));
     assert!(json.contains("\"inspect\""));
     assert!(json.contains("\"heuristics\""));
@@ -205,7 +207,7 @@ fn source_context_defaults_to_unknown_without_inference() {
     let human = render_report(&cli, &report).expect("human report should render");
 
     assert_eq!(
-        report.inspect.authority_context.source_context,
+        report.inspect.authority_context.redacted.source_context,
         SourceContext::Unknown
     );
     assert!(human.contains("source_context=unknown"));
@@ -232,7 +234,10 @@ fn source_context_categories_render_in_human_and_json_reports() {
         let report = build_report_with_resolver(&cli, &resolver_with(b"unused".to_vec()));
         let human = render_report(&cli, &report).expect("human report should render");
 
-        assert_eq!(report.inspect.authority_context.source_context, expected);
+        assert_eq!(
+            report.inspect.authority_context.redacted.source_context,
+            expected
+        );
         assert!(human.contains(&format!("source_context={value}")));
 
         let json_cli = Cli::parse_from([
@@ -263,7 +268,7 @@ fn source_context_after_inspect_action_is_still_caller_declared() {
     let human = render_report(&cli, &report).expect("human report should render");
 
     assert_eq!(
-        report.inspect.authority_context.source_context,
+        report.inspect.authority_context.redacted.source_context,
         SourceContext::Ci
     );
     assert_eq!(cli.raw_package_spec(), "create-example@latest");
@@ -281,7 +286,7 @@ fn source_context_after_inspect_action_supports_equals_syntax() {
     let report = build_report_with_resolver(&cli, &resolver_with(b"unused".to_vec()));
 
     assert_eq!(
-        report.inspect.authority_context.source_context,
+        report.inspect.authority_context.redacted.source_context,
         SourceContext::AgentSkill
     );
     assert_eq!(cli.raw_package_spec(), "create-example@latest");
@@ -313,6 +318,106 @@ fn invalid_source_context_after_inspect_fails_closed_at_cli_parse_time() {
     .expect_err("invalid source context should not parse after inspect");
 
     assert_eq!(error.kind(), clap::error::ErrorKind::InvalidValue);
+}
+
+#[test]
+fn authority_context_redacts_registry_tokens_and_separates_identity_fields() {
+    let registry = RegistrySource {
+        url: "https://secret-token@registry.example.test/npm/".to_string(),
+        scope: Some("@scope".to_string()),
+    };
+    let authority = build_authority_context_with_paths(
+        "@scope/create-example@1.2.3",
+        &SourceContext::ManualTerminal,
+        Some(&registry),
+        Some("scoped".to_string()),
+        Some(std::path::Path::new("/workspace/project")),
+        Some(std::path::Path::new("/Users/alice")),
+    );
+    let registry = authority.registry.expect("registry should render");
+
+    assert_eq!(registry.category, AuthorityRegistryCategory::ScopedRegistry);
+    assert_eq!(
+        registry.display_url,
+        "https://<redacted>@registry.example.test/npm/"
+    );
+    assert!(!registry.display_url.contains("secret-token"));
+    assert_eq!(
+        authority.identity.status,
+        "reserved_for_canonical_receipt_identity"
+    );
+}
+
+#[test]
+fn authority_context_redacts_home_paths_and_classifies_temp_directories() {
+    let home = std::path::Path::new("/Users/alice");
+    let home_authority = build_authority_context_with_paths(
+        "/Users/alice/project/create-example@1.2.3",
+        &SourceContext::DocsSnippet,
+        None,
+        None,
+        Some(std::path::Path::new("/Users/alice/project")),
+        Some(home),
+    );
+    let temp_authority = build_authority_context_with_paths(
+        "create-example@1.2.3",
+        &SourceContext::Ci,
+        None,
+        None,
+        Some(&std::env::temp_dir().join("safe-npx-test")),
+        Some(home),
+    );
+
+    assert_eq!(home_authority.cwd.category, "home_subtree");
+    assert_eq!(home_authority.cwd.display, "<home>/project");
+    assert_eq!(
+        home_authority.command_intent.display,
+        "<home>/project/create-example@1.2.3"
+    );
+    assert!(!home_authority.cwd.display.contains("/Users/alice"));
+    assert_eq!(temp_authority.cwd.category, "temp_directory");
+}
+
+#[test]
+fn authority_context_covers_public_npm_ci_and_agent_categories() {
+    let registry = RegistrySource {
+        url: crate::PUBLIC_NPM_REGISTRY_URL.to_string(),
+        scope: None,
+    };
+    let ci_authority = build_authority_context_with_paths(
+        "create-example@1.2.3",
+        &SourceContext::Ci,
+        Some(&registry),
+        Some("unscoped".to_string()),
+        Some(std::path::Path::new("/workspace/project")),
+        None,
+    );
+    let agent_authority = build_authority_context_with_paths(
+        "create-example@1.2.3",
+        &SourceContext::AgentSkill,
+        None,
+        None,
+        Some(std::path::Path::new("/workspace/project")),
+        None,
+    );
+
+    assert_eq!(ci_authority.runner_context, AuthorityRunnerContext::Ci);
+    assert_eq!(
+        ci_authority.actor_context,
+        AuthorityActorContext::Automation
+    );
+    assert_eq!(
+        ci_authority.registry.expect("registry").category,
+        AuthorityRegistryCategory::PublicNpm
+    );
+    assert_eq!(
+        agent_authority.runner_context,
+        AuthorityRunnerContext::Agent
+    );
+    assert_eq!(
+        agent_authority.actor_context,
+        AuthorityActorContext::CodingAgent
+    );
 }
 
 fn inspect_report(tarball: &[u8]) -> crate::Report {

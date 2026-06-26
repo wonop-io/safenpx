@@ -7,6 +7,8 @@ use clap::{Parser, ValueEnum};
 use serde::Serialize;
 use std::ffi::OsString;
 
+/// Authority-context classification and redaction.
+mod authority_context;
 /// Deterministic M2 package bin selection.
 mod bin_selection;
 /// M2 no-package-code-ran canary harness.
@@ -81,6 +83,7 @@ mod report_tests;
 /// End-to-end root artifact resolver.
 mod resolver;
 
+pub use authority_context::*;
 pub use bin_selection::*;
 pub use canary::*;
 pub use closure::*;

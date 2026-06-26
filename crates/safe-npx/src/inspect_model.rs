@@ -1,8 +1,8 @@
 //! Shared M3 inspect evidence model for human and JSON reports.
 
 use crate::{
-    ArtifactIdentity, CommandIntent, Decision, M1Reason, RegistryEvidence, RegistrySource,
-    ResolvedPackage, SourceContext, StaticExtractionEvidence,
+    ArtifactIdentity, AuthorityContext, CommandIntent, Decision, M1Reason, RegistryEvidence,
+    ResolvedPackage, StaticExtractionEvidence,
 };
 use serde::Serialize;
 
@@ -118,16 +118,8 @@ pub enum InspectNextAction {
 /// Initial authority context for M3 inspect output.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 pub struct InspectAuthorityContext {
-    /// Raw command/package intent.
-    pub command_intent: String,
-    /// Caller-declared source context, or unknown when undeclared.
-    pub source_context: SourceContext,
-    /// Selected registry source when known.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub registry_source: Option<RegistrySource>,
-    /// Package scope category when known.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub package_scope: Option<String>,
+    /// Redacted authority context for display and JSON.
+    pub redacted: AuthorityContext,
 }
 
 /// Execution state for the inspect report.
