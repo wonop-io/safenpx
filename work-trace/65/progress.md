@@ -10,3 +10,5 @@
 - Recorded cold live latency evidence for `is-number@7.0.0` under the
   five-second budget.
 - Marked M3 status as closeout in progress in `docs/milestones.md`.
+- Updated final closeout evidence after #65 CI passed and GitHub milestone #4
+  closed with zero open issues.

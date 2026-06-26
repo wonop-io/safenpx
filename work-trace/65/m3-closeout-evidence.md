@@ -84,14 +84,15 @@ Local verification before closeout:
 - `just test` passed with 203 Rust tests, 1 ignored manual latency test, Rust
   documentation coverage 82%, line coverage 93.46%, and Bazel tests passing.
 
-Latest GitHub Actions evidence before closeout:
+Latest GitHub Actions evidence for closeout:
 
-- `feat(63): add inspect latency budgets`
-- Run ID: `28234807450`
+- `docs(65): record m3 closeout evidence`
+- Run ID: `28235127946`
 - Status: success
 - Jobs: Policy Preflight, Rust And Bazel
 
-Final closeout condition:
+Final closeout state:
 
-- M3 can be closed after this evidence commit reaches green CI and issue #65 is
-  the only remaining open M3 issue.
+- GitHub issue #65 is closed.
+- GitHub milestone #4, `M3: Inspect Evidence And JSON V0`, is closed.
+- M3 has zero open issues and sixteen closed issues.

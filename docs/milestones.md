@@ -228,9 +228,9 @@ Decision:
 
 Goal: produce useful human and machine evidence before any package code can run.
 
-Status: closeout in progress. Closeout evidence is recorded in
-`work-trace/65/m3-closeout-evidence.md` and GitHub milestone closure is tracked
-by issue #65.
+Status: complete. Closeout evidence is recorded in
+`work-trace/65/m3-closeout-evidence.md`; GitHub milestone #4 is closed with
+zero open issues.
 
 Deliverables:
 
