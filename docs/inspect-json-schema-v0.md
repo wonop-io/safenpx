@@ -27,6 +27,7 @@ The V0 top-level object contains:
 - `external_evidence`
 - `attestations`
 - `release_diff`
+- `decision_receipt`
 - `decision`
 - `reasons`
 - `required_next_action`
@@ -38,6 +39,13 @@ V0. M3 does not query a hosted audit registry, fetch third-party attestations,
 or compute release-diff evidence for these fields. A non-null value requires a
 later schema change with documented provenance and failure semantics. `execution`
 is null for inspect mode.
+
+`decision_receipt` is a non-authoritative inspect evidence record. It includes
+artifact digest identity when available, command identity, evidence summary,
+policy version, a nullable `issued_at` timestamp, and redaction metadata. In M3
+it is not an approval, allow-list entry, or cache key; `cache_status` is
+`not_an_approval_cache`, and later milestones must define validation, replay,
+expiry, and cache semantics before receipts can affect execution.
 
 During the `0.1` transition, JSON output also includes additive legacy fields so
 existing callers can migrate without losing evidence paths:

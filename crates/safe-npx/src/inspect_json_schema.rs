@@ -2,9 +2,10 @@
 
 use crate::m2_report::{closure_decision_name, required_next_action_name};
 use crate::{
-    build_authority_context, exit_code_for_report, ArtifactIdentity, AuthorityContext,
-    CommandIntent, Decision, ExecutionReport, InspectFacts, InspectHeuristic, InspectModel,
-    M1Evidence, M1Reason, M2ExecutionRefusalReport, SourceContext,
+    build_authority_context, build_inspect_decision_receipt, exit_code_for_report,
+    ArtifactIdentity, AuthorityContext, CommandIntent, Decision, ExecutionReport,
+    InspectDecisionReceipt, InspectFacts, InspectHeuristic, InspectModel, M1Evidence, M1Reason,
+    M2ExecutionRefusalReport, SourceContext,
 };
 use serde::Serialize;
 
@@ -40,6 +41,8 @@ pub struct InspectJsonReport {
     pub attestations: Option<serde_json::Value>,
     /// Reserved for future release diff evidence.
     pub release_diff: Option<serde_json::Value>,
+    /// Non-authoritative local/shareable inspect decision receipt.
+    pub decision_receipt: Option<InspectDecisionReceipt>,
     /// Stable top-level decision vocabulary.
     pub decision: InspectJsonDecision,
     /// Stable machine-readable decision reasons.
@@ -94,6 +97,10 @@ pub enum InspectJsonNextAction {
 
 /// Build the M3 inspect JSON schema from an internal report.
 pub fn build_inspect_json_report(report: &crate::Report) -> InspectJsonReport {
+    let decision = inspect_json_decision(report);
+    let required_next_action = inspect_json_next_action_for_decision(&decision);
+    let exit_code = exit_code_for_report(report);
+
     InspectJsonReport {
         package_spec: report.package_spec.clone(),
         recommendation: report.recommendation.clone(),
@@ -114,11 +121,17 @@ pub fn build_inspect_json_report(report: &crate::Report) -> InspectJsonReport {
         external_evidence: None,
         attestations: None,
         release_diff: None,
-        decision: inspect_json_decision(report),
+        decision_receipt: Some(build_inspect_decision_receipt(
+            report,
+            decision.clone(),
+            required_next_action.clone(),
+            exit_code,
+        )),
+        decision,
         reasons: report.inspect.decision.reasons.clone(),
-        required_next_action: inspect_json_next_action(report),
+        required_next_action,
         execution: None,
-        exit_code: exit_code_for_report(report),
+        exit_code,
         inspect: report.inspect.clone(),
         m1: report.m1.clone(),
     }
@@ -144,6 +157,7 @@ pub fn build_m2_execution_refusal_json_report(
         "external_evidence": null,
         "attestations": null,
         "release_diff": null,
+        "decision_receipt": null,
         "decision": closure_decision_name(&report.decision),
         "reasons": report.reasons,
         "required_next_action": required_next_action_name(&report.required_next_action),
@@ -173,8 +187,8 @@ fn inspect_json_decision(report: &crate::Report) -> InspectJsonDecision {
 }
 
 /// Map the public M3 JSON decision to an agent-readable next action.
-fn inspect_json_next_action(report: &crate::Report) -> InspectJsonNextAction {
-    match inspect_json_decision(report) {
+fn inspect_json_next_action_for_decision(decision: &InspectJsonDecision) -> InspectJsonNextAction {
+    match decision {
         InspectJsonDecision::Allow => InspectJsonNextAction::None,
         InspectJsonDecision::Ask => InspectJsonNextAction::AskUser,
         InspectJsonDecision::Deny => InspectJsonNextAction::None,

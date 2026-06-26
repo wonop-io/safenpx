@@ -75,6 +75,37 @@ fn redacted_authority_golden_hides_secret_and_host_inputs() {
     }
 }
 
+/// Verifies receipt display fields stay redacted while identity fields stay canonical.
+#[test]
+fn redacted_authority_receipt_separates_display_and_identity_fields() {
+    let cli = Cli::parse_from(["safe-npx", "--json", "create-example@1.2.3"]);
+    let output = render_schema_golden(&cli, &redacted_authority_report());
+    let value: Value = serde_json::from_str(&output).expect("schema should parse");
+    let receipt = &value["decision_receipt"];
+
+    assert!(receipt["command"]["identity_key"]
+        .as_str()
+        .expect("identity key should be a string")
+        .starts_with("sha256:"));
+    assert_eq!(
+        receipt["command"]["requested_display"],
+        "create-example@1.2.3"
+    );
+    assert_eq!(
+        receipt["redaction"]["authority_identity_status"],
+        "canonical_redacted_identity_v0"
+    );
+    assert_eq!(receipt["redaction"]["cwd_trust_class"], "home_subtree");
+    assert!(
+        !output.contains("sekret-token"),
+        "receipt output leaked registry token"
+    );
+    assert!(
+        !output.contains("/home/example"),
+        "receipt output leaked host path"
+    );
+}
+
 /// Verifies expanded fixture outputs keep future hosted evidence fields null.
 #[test]
 fn expanded_json_golden_fixtures_keep_reserved_fields_null() {
@@ -104,6 +135,10 @@ fn expanded_json_golden_fixtures_keep_reserved_fields_null() {
                 "{name} must keep {field} present and null"
             );
         }
+        assert!(
+            value.get("decision_receipt").is_some(),
+            "{name} must include decision_receipt"
+        );
     }
 }
 

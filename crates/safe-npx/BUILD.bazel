@@ -39,6 +39,8 @@ rust_library(
         "src/inspect.rs",
         "src/inspect_model.rs",
         "src/inspect_model_tests.rs",
+        "src/inspect_receipt.rs",
+        "src/inspect_receipt_tests.rs",
         "src/m3_inspect.rs",
         "src/m3_inspect_canary_tests.rs",
         "src/m3_inspect_tests.rs",

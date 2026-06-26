@@ -58,6 +58,42 @@
   "external_evidence": null,
   "attestations": null,
   "release_diff": null,
+  "decision_receipt": {
+    "receipt_version": "m3-inspect-receipt-v0",
+    "schema_version": "0.1",
+    "policy_version": "m3-inspect-policy-v0",
+    "issued_at": null,
+    "cache_status": "not_an_approval_cache",
+    "artifact": null,
+    "command": {
+      "identity_key": "sha256:8d2164e6dbcae121e358a15a5635ed71f10e1b3685cf6620f5b9a78055534f5b",
+      "package_state": "unsupported",
+      "package_name": null,
+      "package_version": null,
+      "forwarded_args_count": 0,
+      "requested_display": "create-example@next",
+      "forwarded_args_display": []
+    },
+    "evidence_summary": {
+      "decision": "unsupported",
+      "required_next_action": "retry_narrower_command",
+      "reasons": [
+        "fixture"
+      ],
+      "exit_code": 2,
+      "execution_state": "stopped_before_execution",
+      "package_code_executed": false,
+      "heuristics_count": 0
+    },
+    "redaction": {
+      "display_redaction": "redacted_report_v0",
+      "authority_identity_status": "canonical_redacted_identity_v0",
+      "command_intent_key": "sha256:8d2164e6dbcae121e358a15a5635ed71f10e1b3685cf6620f5b9a78055534f5b",
+      "cwd_trust_class": "trusted_project",
+      "registry_key": null,
+      "boundary": "receipt is inspect evidence only; M3 does not define approval-cache semantics"
+    }
+  },
   "decision": "unsupported",
   "reasons": [
     "fixture"

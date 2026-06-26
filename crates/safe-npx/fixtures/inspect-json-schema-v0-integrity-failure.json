@@ -60,6 +60,42 @@
   "external_evidence": null,
   "attestations": null,
   "release_diff": null,
+  "decision_receipt": {
+    "receipt_version": "m3-inspect-receipt-v0",
+    "schema_version": "0.1",
+    "policy_version": "m3-inspect-policy-v0",
+    "issued_at": null,
+    "cache_status": "not_an_approval_cache",
+    "artifact": null,
+    "command": {
+      "identity_key": "sha256:5a32b3a97051ce834beb943a4afbfc29b1f305368f9871d30eee826e0e86647b",
+      "package_state": "supported",
+      "package_name": "create-example",
+      "package_version": "1.2.3",
+      "forwarded_args_count": 0,
+      "requested_display": "create-example@1.2.3",
+      "forwarded_args_display": []
+    },
+    "evidence_summary": {
+      "decision": "deny",
+      "required_next_action": "none",
+      "reasons": [
+        "fixture"
+      ],
+      "exit_code": 4,
+      "execution_state": "failed_before_execution",
+      "package_code_executed": false,
+      "heuristics_count": 0
+    },
+    "redaction": {
+      "display_redaction": "redacted_report_v0",
+      "authority_identity_status": "canonical_redacted_identity_v0",
+      "command_intent_key": "sha256:5a32b3a97051ce834beb943a4afbfc29b1f305368f9871d30eee826e0e86647b",
+      "cwd_trust_class": "trusted_project",
+      "registry_key": null,
+      "boundary": "receipt is inspect evidence only; M3 does not define approval-cache semantics"
+    }
+  },
   "decision": "deny",
   "reasons": [
     "fixture"

@@ -38,6 +38,7 @@ fn inspect_json_schema_has_required_top_level_shape() {
         "external_evidence",
         "attestations",
         "release_diff",
+        "decision_receipt",
         "decision",
         "reasons",
         "required_next_action",
@@ -51,6 +52,7 @@ fn inspect_json_schema_has_required_top_level_shape() {
     assert_eq!(value["decision"], "ask");
     assert_eq!(value["required_next_action"], "ask_user");
     assert_reserved_fields_are_null(&value);
+    assert!(value["decision_receipt"].is_object());
     assert_eq!(value["execution"], Value::Null);
     assert_eq!(value["exit_code"], 0);
 }
@@ -102,6 +104,7 @@ fn execution_refusal_json_uses_m3_schema_envelope() {
     assert_eq!(value["execution"], Value::Null);
     assert!(value.get("authority_context").is_some());
     assert_reserved_fields_are_null(&value);
+    assert_eq!(value.get("decision_receipt"), Some(&Value::Null));
 }
 
 /// Verifies checked-in base fixtures keep future hosted evidence fields null.

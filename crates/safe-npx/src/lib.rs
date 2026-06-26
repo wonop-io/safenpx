@@ -56,6 +56,11 @@ mod inspect_model;
 #[cfg(test)]
 /// Tests for the shared M3 inspect evidence model.
 mod inspect_model_tests;
+/// M3 inspect decision receipt shape.
+mod inspect_receipt;
+#[cfg(test)]
+/// Tests for M3 inspect decision receipts.
+mod inspect_receipt_tests;
 /// Root artifact integrity verifier.
 mod integrity;
 /// M2 closure fixture manifest support.
@@ -118,6 +123,7 @@ pub use fixtures::*;
 pub use inspect::*;
 pub use inspect_json_schema::*;
 pub use inspect_model::*;
+pub use inspect_receipt::*;
 pub use integrity::*;
 pub use m2_fixtures::*;
 pub use m3_inspect::*;
