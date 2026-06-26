@@ -11,18 +11,18 @@ not whether the exact artifact has been audited.
 `safe-npx` keeps the workflow and fixes the decision point.
 
 ```bash
-safe-npx create-example@1.2.3
+safe-npx inspect create-example@1.2.3
 ```
 
-Before execution, the tool should resolve the exact package artifact, verify
-integrity, inspect metadata and package contents, apply local policy, and fail
-closed when it cannot prove that the inspected bytes are the bytes that would
-run.
+In the M3 proof of concept, inspect mode resolves the exact package artifact,
+verifies integrity, inspects registry metadata and package contents, then stops.
+It does not run package binaries, lifecycle scripts, dependency scripts, or raw
+`npx`.
 
 For agents:
 
 ```bash
-safe-npx --json create-example@1.2.3
+safe-npx --json inspect create-example@1.2.3
 ```
 
 The JSON output lets a coding agent stop, explain the risk, and ask the user
@@ -30,9 +30,10 @@ before running remote package code.
 
 ## Status
 
-Early public scaffold. This repository contains the product scope, threat model,
-public benefit plan, demo-flow spec, and a Rust CLI skeleton. The first working
-prototype is intentionally narrow.
+Early public scaffold with an inspect-first proof of concept. This repository
+contains the product scope, threat model, public benefit plan, demo-flow spec,
+Rust CLI, inspect evidence model, human report, and JSON schema V0. The first
+working prototype is intentionally narrow.
 
 ## v0.1 Goal
 
@@ -64,6 +65,9 @@ The first release should:
 - `docs/technical-scope.typ` and `docs/technical-scope.pdf`: one-page technical scope.
 - `docs/threat-model.md`: threat model and boundaries.
 - `docs/demo-flow-spec.md`: demo script specification, not yet implemented.
+- `docs/inspect-first-poc.md`: M3 inspect workflow, supported command shapes,
+  limits, redaction, and schema compatibility.
+- `docs/inspect-json-schema-v0.md`: agent and CI JSON output contract.
 - `docs/public-benefit-plan.md`: OSS, test corpus, and ecosystem benefit plan.
 - `docs/roadmap.md`: public roadmap.
 - `docs/one-year-vision.md`: one-year product and architecture vision.
@@ -83,6 +87,10 @@ later milestone queues.
 
 `safe-npx` does not prove that a package is safe. It provides evidence-backed
 risk signals before execution.
+
+M3 is inspect-first. It can collect evidence for supported command shapes, but
+general package execution is a later milestone. Unsupported or unverifiable
+commands must fail closed rather than falling back to raw `npx`.
 
 Prefer:
 

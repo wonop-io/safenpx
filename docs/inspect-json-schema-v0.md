@@ -65,6 +65,31 @@ New agent and CI integrations should prefer the canonical V0 fields above.
 - Enum additions require a schema bump.
 - Enum semantic changes require a migration note.
 
+Reserved fields are part of compatibility. `external_evidence`, `attestations`,
+and `release_diff` must remain present and null until a later milestone defines
+non-null provenance, trust, freshness, and failure semantics.
+
+## Redaction And Authority Context
+
+`authority_context` describes the ambient authority around an inspect request.
+It includes categories such as source context, cwd trust class, registry
+authority, package scope, and command intent. It is not a sandbox and should not
+be interpreted as proof that future execution is isolated.
+
+JSON display fields are redacted. Reports must not expose secret values, private
+registry tokens, full sensitive environment details, or home-directory paths.
+Canonical or hashed identity fields used for future receipts are separate from
+redacted display strings.
+
+## Execution Boundary
+
+M3 inspect JSON is no-run evidence. `execution` is null for inspect mode, and a
+successful report means inspection completed without running package binaries,
+lifecycle scripts, dependency scripts, or raw `npx`.
+
+Evidence signals are not safety proofs. They help a human or agent decide what
+to do next; they do not authorize execution.
+
 ## Enum Vocabulary
 
 `decision` values are:

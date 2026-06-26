@@ -33,6 +33,8 @@ This is the first AI-facing index for `safe-npx`. Keep it short and load child i
 - `docs/public-benefit-plan.md`: OSS and ecosystem benefit plan.
 - `docs/roadmap.md`: six-month public roadmap and planning operating model.
 - `docs/milestones.md`: milestone plan and acceptance criteria.
+- `docs/inspect-first-poc.md`: M3 inspect workflow, supported command shapes,
+  limits, redaction, and schema compatibility.
 - `docs/inspect-json-schema-v0.md`: M3 JSON contract for agents and CI.
 - `docs/handle-reservation.md`: npm and crates.io package handle status.
 - `CONTRIBUTING.md`: public contributor workflow.
