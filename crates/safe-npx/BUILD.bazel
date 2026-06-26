@@ -42,6 +42,7 @@ rust_library(
         "src/process_boundary.rs",
         "src/race_matrix.rs",
         "src/registry.rs",
+        "src/registry_evidence.rs",
         "src/registry_precedence.rs",
         "src/report.rs",
         "src/report_tests.rs",

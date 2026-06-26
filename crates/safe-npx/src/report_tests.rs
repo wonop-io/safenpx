@@ -89,10 +89,35 @@ fn renders_json_for_agents() {
     assert!(output.contains("\"state\": \"supported\""));
     assert!(output.contains("\"name\": \"create-example\""));
     assert!(output.contains("\"version\": \"1.2.3\""));
+    assert!(output.contains("\"registry_evidence\""));
+    assert!(output.contains("\"evidence_boundary\""));
     assert!(output.contains("\"recommendation\": \"ask\""));
     assert!(output.contains("\"state\": \"verified\""));
     assert!(output.contains("\"integrity_status\": \"verified\""));
     assert!(output.contains("\"digest_algorithm\": \"sha512\""));
+}
+
+#[test]
+fn renders_json_with_registry_metadata_evidence() {
+    let bytes = b"fixture-tarball";
+    let cli = Cli::parse_from(["safe-npx", "--json", "create-example@1.2.3"]);
+    let output = run_with_resolver(
+        &cli,
+        &resolver_with(
+            metadata_body_with_optional_registry_fields(&integrity_for(bytes)),
+            bytes.to_vec(),
+        ),
+    );
+
+    assert!(output.contains("\"registry_evidence\""));
+    assert!(output.contains("\"package_scope\": \"unscoped\""));
+    assert!(output.contains("\"publish_time\": \"2026-06-26T07:00:00.000Z\""));
+    assert!(output.contains("\"maintainers\""));
+    assert!(output.contains("\"publisher\""));
+    assert!(output.contains("\"repository\": \"https://github.com/example/version-repo\""));
+    assert!(output.contains("\"license\": \"Apache-2.0\""));
+    assert!(output.contains("\"dist.signatures\""));
+    assert!(output.contains("registry metadata is not proof of tarball package contents"));
 }
 
 #[test]
@@ -449,6 +474,13 @@ fn metadata_body(integrity: &str) -> String {
                 }}
             }}
         }}"#,
+        integrity
+    )
+}
+
+fn metadata_body_with_optional_registry_fields(integrity: &str) -> String {
+    format!(
+        r#"{{"time":{{"1.2.3":"2026-06-26T07:00:00.000Z"}},"maintainers":[{{"name":"Alice","email":"alice@example.test"}}],"versions":{{"1.2.3":{{"version":"1.2.3","_npmUser":{{"name":"Publisher","email":"publisher@example.test"}},"repository":{{"url":"https://github.com/example/version-repo"}},"license":"Apache-2.0","dist":{{"tarball":"https://registry.npmjs.org/create-example/-/create-example-1.2.3.tgz","integrity":"{}","signatures":[{{"keyid":"fixture"}}]}}}}}}}}"#,
         integrity
     )
 }

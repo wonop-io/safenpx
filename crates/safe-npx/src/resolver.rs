@@ -2,8 +2,8 @@
 
 use crate::{
     verify_artifact_integrity, ArtifactIdentity, ArtifactVerificationError, Decision, M1Reason,
-    NpmMetadataClient, PackageSpec, RegistryResolutionError, RegistryTransport, ResolvedPackage,
-    TarballDownloadError, TarballDownloader, TarballTransport,
+    NpmMetadataClient, PackageSpec, RegistryEvidence, RegistryResolutionError, RegistryTransport,
+    ResolvedPackage, TarballDownloadError, TarballDownloader, TarballTransport,
 };
 
 /// Verified root artifact resolution result.
@@ -13,6 +13,8 @@ pub struct VerifiedRootArtifact {
     pub resolved_package: ResolvedPackage,
     /// Verified identity for the exact downloaded root artifact bytes.
     pub artifact_identity: ArtifactIdentity,
+    /// Registry facts tied to the resolved exact version.
+    pub registry_evidence: RegistryEvidence,
     /// Exact tarball bytes verified by `artifact_identity`.
     pub artifact_bytes: Vec<u8>,
 }
@@ -93,7 +95,8 @@ impl<M: RegistryTransport, D: TarballTransport> RootArtifactResolver<M, D> {
         &self,
         package_spec: &PackageSpec,
     ) -> Result<VerifiedRootArtifact, RootArtifactResolutionError> {
-        let resolved_package = self.metadata_client.resolve_exact(package_spec)?;
+        let resolved_registry_package = self.metadata_client.resolve_exact(package_spec)?;
+        let resolved_package = resolved_registry_package.resolved_package;
         let artifact_bytes = self.tarball_downloader.download(&resolved_package)?;
         let artifact_identity =
             verify_artifact_integrity(&artifact_bytes, &resolved_package.integrity)?;
@@ -101,6 +104,7 @@ impl<M: RegistryTransport, D: TarballTransport> RootArtifactResolver<M, D> {
         Ok(VerifiedRootArtifact {
             resolved_package,
             artifact_identity,
+            registry_evidence: resolved_registry_package.registry_evidence,
             artifact_bytes: artifact_bytes.bytes,
         })
     }
@@ -220,6 +224,9 @@ mod tests {
         assert_eq!(verified.artifact_identity.integrity, integrity);
         assert_eq!(verified.artifact_identity.digest_algorithm, "sha512");
         assert_eq!(verified.artifact_identity.digest, hex_sha512(&bytes));
+        assert_eq!(verified.registry_evidence.name, "create-example");
+        assert_eq!(verified.registry_evidence.dist_integrity, integrity);
+        assert_eq!(verified.registry_evidence.tarball_url, tarball_url());
         assert_eq!(verified.artifact_bytes, bytes);
         assert_eq!(counters.snapshot(), [0, 0, 0, 0, 0]);
     }

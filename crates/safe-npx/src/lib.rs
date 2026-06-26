@@ -59,6 +59,8 @@ mod process_boundary;
 mod race_matrix;
 /// Public npm registry metadata client.
 mod registry;
+/// Registry metadata evidence extraction.
+mod registry_evidence;
 /// Deterministic M2 registry precedence and agreement checks.
 mod registry_precedence;
 /// Human and JSON report rendering.
@@ -86,6 +88,7 @@ pub use m3_inspect::*;
 pub use parser::*;
 pub use race_matrix::*;
 pub use registry::*;
+pub use registry_evidence::*;
 pub use registry_precedence::*;
 pub use report::*;
 pub use resolver::*;

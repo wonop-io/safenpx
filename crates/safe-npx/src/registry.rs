@@ -1,6 +1,9 @@
 //! Public npm registry metadata resolution for exact-version package specs.
 
-use crate::{normalize_registry_url, M1Reason, PackageSpec, RegistrySource, ResolvedPackage};
+use crate::{
+    build_registry_evidence, normalize_registry_url, M1Reason, PackageSpec, RegistrySource,
+    ResolvedPackage, ResolvedRegistryPackage,
+};
 use serde_json::Value;
 
 /// Public npm registry base URL used by M1.
@@ -119,7 +122,7 @@ impl<T: RegistryTransport> NpmMetadataClient<T> {
     pub fn resolve_exact(
         &self,
         package_spec: &PackageSpec,
-    ) -> Result<ResolvedPackage, RegistryResolutionError> {
+    ) -> Result<ResolvedRegistryPackage, RegistryResolutionError> {
         let metadata_url = self.metadata_url(package_spec);
         let response = self.transport.get(&metadata_url).map_err(|error| {
             RegistryResolutionError::new(M1Reason::RegistryError, error.message)
@@ -156,7 +159,7 @@ fn resolve_from_body(
     package_spec: &PackageSpec,
     registry: &RegistrySource,
     body: &str,
-) -> Result<ResolvedPackage, RegistryResolutionError> {
+) -> Result<ResolvedRegistryPackage, RegistryResolutionError> {
     let metadata = serde_json::from_str::<Value>(body).map_err(|error| {
         RegistryResolutionError::new(M1Reason::RegistryError, error.to_string())
     })?;
@@ -183,12 +186,25 @@ fn resolve_from_body(
     let tarball_url = required_string(dist, "tarball")?.to_string();
     let integrity = required_string(dist, "integrity")?.to_string();
 
-    Ok(ResolvedPackage {
+    let resolved_package = ResolvedPackage {
         name: package_spec.name.clone(),
         version: version.to_string(),
         registry: registry.clone(),
         tarball_url,
         integrity,
+    };
+    let registry_evidence = build_registry_evidence(
+        package_spec,
+        registry,
+        &metadata,
+        version_metadata,
+        dist,
+        &resolved_package,
+    );
+
+    Ok(ResolvedRegistryPackage {
+        resolved_package,
+        registry_evidence,
     })
 }
 
@@ -287,6 +303,8 @@ mod tests {
         let resolved = client
             .resolve_exact(&package_spec)
             .expect("stubbed metadata should resolve");
+        let evidence = resolved.registry_evidence;
+        let resolved = resolved.resolved_package;
 
         assert_eq!(resolved.name, "create-example");
         assert_eq!(resolved.version, "1.2.3");
@@ -297,6 +315,11 @@ mod tests {
             "https://registry.npmjs.org/create-example/-/create-example-1.2.3.tgz"
         );
         assert_eq!(resolved.integrity, "sha512-fixture");
+        assert_eq!(evidence.dist_integrity, "sha512-fixture");
+        assert_eq!(
+            evidence.package_scope,
+            crate::PackageScopeCategory::Unscoped
+        );
     }
 
     #[test]
@@ -318,8 +341,11 @@ mod tests {
         let resolved = client
             .resolve_exact(&package_spec)
             .expect("stubbed scoped metadata should resolve");
+        let evidence = resolved.registry_evidence;
+        let resolved = resolved.resolved_package;
 
         assert_eq!(resolved.registry, registry);
+        assert_eq!(evidence.package_scope, crate::PackageScopeCategory::Scoped);
         assert_eq!(
             resolved.tarball_url,
             "https://scope.registry.test/npm/@scope/create-example/-/create-example-1.2.3.tgz"
@@ -448,7 +474,7 @@ mod tests {
 
     /// Assert a resolution error maps to one stable M1 reason.
     fn assert_reason(
-        result: Result<ResolvedPackage, RegistryResolutionError>,
+        result: Result<ResolvedRegistryPackage, RegistryResolutionError>,
         expected_reason: M1Reason,
     ) {
         let error = result.expect_err("resolution should fail");

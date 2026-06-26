@@ -7,9 +7,9 @@ use crate::m2_report::{
 use crate::{
     extract_for_inspect, inspect_raw_spec_with_probe, render_static_extraction, ArtifactIdentity,
     Cli, ClosureCommandIdentity, ClosureDecision, CommandIntent, CountingProbe, Decision, M1Reason,
-    M2Reason, NpmMetadataClient, PackageSpecParse, RegistryTransport, ReqwestRegistryTransport,
-    ReqwestTarballTransport, ResolvedPackage, RootArtifactResolver, StaticExtractionEvidence,
-    TarballDownloader, TarballTransport, UnsupportedSpecCategory,
+    M2Reason, NpmMetadataClient, PackageSpecParse, RegistryEvidence, RegistryTransport,
+    ReqwestRegistryTransport, ReqwestTarballTransport, ResolvedPackage, RootArtifactResolver,
+    StaticExtractionEvidence, TarballDownloader, TarballTransport, UnsupportedSpecCategory,
 };
 use serde::Serialize;
 
@@ -63,6 +63,8 @@ pub enum M1Evidence {
         integrity_status: &'static str,
         /// Verified digest identity for the exact root artifact bytes.
         artifact_identity: ArtifactIdentity,
+        /// Registry metadata evidence tied to the resolved exact version.
+        registry_evidence: RegistryEvidence,
         /// Static extraction evidence collected from verified bytes.
         #[serde(skip_serializing_if = "Option::is_none")]
         static_extraction: Option<StaticExtractionEvidence>,
@@ -154,6 +156,7 @@ pub fn build_report_with_resolver<M: RegistryTransport, D: TarballTransport>(
                                 resolved_package: verified.resolved_package,
                                 integrity_status: "verified",
                                 artifact_identity: verified.artifact_identity,
+                                registry_evidence: verified.registry_evidence,
                                 static_extraction: Some(static_extraction),
                             },
                         ),
@@ -173,6 +176,7 @@ pub fn build_report_with_resolver<M: RegistryTransport, D: TarballTransport>(
                             resolved_package: verified.resolved_package,
                             integrity_status: "verified",
                             artifact_identity: verified.artifact_identity,
+                            registry_evidence: verified.registry_evidence,
                             static_extraction: None,
                         },
                     )
@@ -363,12 +367,14 @@ fn render_evidence(m1: &M1Evidence) -> String {
             resolved_package,
             integrity_status,
             artifact_identity,
+            registry_evidence,
             static_extraction,
         } => format!(
-            "M1 evidence: verified\nResolved: {}@{}\nRegistry: {}\nTarball: {}\nIntegrity: {}\nIntegrity metadata: {}\nDigest: {}:{}\n{}",
+            "M1 evidence: verified\nResolved: {}@{}\nRegistry: {}\nRegistry evidence: {}\nTarball: {}\nIntegrity: {}\nIntegrity metadata: {}\nDigest: {}:{}\n{}",
             resolved_package.name,
             resolved_package.version,
             resolved_package.registry.url,
+            registry_evidence.evidence_boundary,
             resolved_package.tarball_url,
             integrity_status,
             resolved_package.integrity,
