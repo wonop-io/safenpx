@@ -1,5 +1,8 @@
 //! Human and JSON M1 report rendering.
 
+use crate::inspect_json_schema::{
+    build_inspect_json_report, build_m2_execution_refusal_json_report,
+};
 use crate::m2_report::{
     closure_decision_for_m2_reasons, closure_decision_name, exit_code_for_closure_decision,
     format_m2_reasons, required_next_action_for_m2_reasons, required_next_action_name,
@@ -51,7 +54,7 @@ pub struct Report {
 }
 
 /// M1 report evidence emitted before any package execution.
-#[derive(Debug, PartialEq, Eq, Serialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 #[serde(tag = "state", rename_all = "snake_case")]
 pub enum M1Evidence {
     /// Input was refused before registry or tarball access.
@@ -123,7 +126,7 @@ pub enum RequiredNextAction {
 }
 
 /// Execution details populated only when package code actually runs.
-#[derive(Debug, PartialEq, Eq, Serialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 pub struct ExecutionReport {
     /// Executed program path or identifier.
     pub program: String,
@@ -241,7 +244,9 @@ pub fn build_report_with_resolver<M: RegistryTransport, D: TarballTransport>(
 /// Render the report in the requested output format.
 pub fn render_report(cli: &Cli, report: &Report) -> anyhow::Result<String> {
     if cli.json {
-        return Ok(serde_json::to_string_pretty(report)?);
+        return Ok(serde_json::to_string_pretty(&build_inspect_json_report(
+            report,
+        ))?);
     }
 
     Ok(format!(
@@ -286,7 +291,9 @@ pub fn render_m2_execution_refusal_report(
     report: &M2ExecutionRefusalReport,
 ) -> anyhow::Result<String> {
     if cli.json {
-        return Ok(serde_json::to_string_pretty(report)?);
+        return Ok(serde_json::to_string_pretty(
+            &build_m2_execution_refusal_json_report(report),
+        )?);
     }
 
     Ok(format!(

@@ -146,7 +146,7 @@ fn renders_json_for_unsupported_specs() {
     assert!(output.contains("\"category\": \"version_range\""));
     assert!(output.contains("\"forwarded_args\": []"));
     assert!(output.contains("\"downloaded\": false"));
-    assert!(!output.contains("\"execution\""));
+    assert!(output.contains("\"execution\": null"));
 }
 
 #[test]
@@ -158,7 +158,7 @@ fn renders_json_for_malformed_specs() {
     assert!(output.contains("\"reason\": \"malformed_spec\""));
     assert!(output.contains("\"raw\": \"@scope/\""));
     assert!(output.contains("\"downloaded\": false"));
-    assert!(!output.contains("\"execution\""));
+    assert!(output.contains("\"execution\": null"));
 }
 
 #[test]

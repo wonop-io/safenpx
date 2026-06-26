@@ -168,7 +168,7 @@ fn inspect_action_reports_m2_closure_blockers_as_static_metadata() {
     assert!(output.contains("\"postinstall\""));
     assert!(output.contains("\"dependency_declarations\""));
     assert!(output.contains("\"left-pad\""));
-    assert!(!output.contains("\"execution\""));
+    assert!(output.contains("\"execution\": null"));
 }
 
 #[test]

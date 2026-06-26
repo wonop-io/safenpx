@@ -1,0 +1,131 @@
+{
+  "package_spec": "create-example@1.2.3",
+  "recommendation": "ask",
+  "status": "m3_inspect",
+  "note": "fixture",
+  "schema_version": "0.1",
+  "artifact": null,
+  "command_intent": {
+    "requested": "create-example@1.2.3",
+    "package_spec": {
+      "state": "supported",
+      "raw": "create-example@1.2.3",
+      "name": "create-example",
+      "version": "1.2.3",
+      "scope": null
+    },
+    "forwarded_args": []
+  },
+  "source_context": "unknown",
+  "authority_context": {
+    "command_intent": {
+      "category": "command_intent",
+      "display": "create-example@1.2.3"
+    },
+    "source_context": "unknown",
+    "runner_context": "unknown",
+    "actor_context": "unknown",
+    "cwd": {
+      "category": "trusted_project",
+      "display": "<absolute-path>"
+    },
+    "package_scope": "unscoped",
+    "identity": {
+      "status": "canonical_redacted_identity_v0",
+      "command_intent_key": "sha256:5a32b3a97051ce834beb943a4afbfc29b1f305368f9871d30eee826e0e86647b",
+      "cwd_trust_class": "trusted_project"
+    },
+    "sandbox_boundary": "authority context describes ambient process authority; it is not sandboxing"
+  },
+  "facts": {
+    "command": {
+      "requested": "create-example@1.2.3",
+      "package_spec": {
+        "state": "supported",
+        "raw": "create-example@1.2.3",
+        "name": "create-example",
+        "version": "1.2.3",
+        "scope": null
+      },
+      "forwarded_args": []
+    },
+    "refusal": {
+      "state": "failed",
+      "reason": "registry_error",
+      "downloaded": false,
+      "detail": "registry unavailable"
+    }
+  },
+  "heuristics": [],
+  "external_evidence": null,
+  "attestations": null,
+  "release_diff": null,
+  "decision": "inspection_error",
+  "reasons": [
+    "fixture"
+  ],
+  "required_next_action": "inspect_only",
+  "execution": null,
+  "exit_code": 3,
+  "inspect": {
+    "facts": {
+      "command": {
+        "requested": "create-example@1.2.3",
+        "package_spec": {
+          "state": "supported",
+          "raw": "create-example@1.2.3",
+          "name": "create-example",
+          "version": "1.2.3",
+          "scope": null
+        },
+        "forwarded_args": []
+      },
+      "refusal": {
+        "state": "failed",
+        "reason": "registry_error",
+        "downloaded": false,
+        "detail": "registry unavailable"
+      }
+    },
+    "heuristics": [],
+    "decision": {
+      "recommendation": "ask",
+      "reasons": [
+        "fixture"
+      ],
+      "required_next_action": "ask_user"
+    },
+    "authority_context": {
+      "redacted": {
+        "command_intent": {
+          "category": "command_intent",
+          "display": "create-example@1.2.3"
+        },
+        "source_context": "unknown",
+        "runner_context": "unknown",
+        "actor_context": "unknown",
+        "cwd": {
+          "category": "trusted_project",
+          "display": "<absolute-path>"
+        },
+        "package_scope": "unscoped",
+        "identity": {
+          "status": "canonical_redacted_identity_v0",
+          "command_intent_key": "sha256:5a32b3a97051ce834beb943a4afbfc29b1f305368f9871d30eee826e0e86647b",
+          "cwd_trust_class": "trusted_project"
+        },
+        "sandbox_boundary": "authority context describes ambient process authority; it is not sandboxing"
+      }
+    },
+    "execution_state": {
+      "state": "stopped_before_execution",
+      "package_code_executed": false
+    }
+  },
+  "m1": {
+    "state": "failed",
+    "reason": "registry_error",
+    "downloaded": false,
+    "detail": "registry unavailable"
+  }
+}

@@ -37,6 +37,11 @@ mod extraction_tests;
 mod fixtures;
 /// Inspect boundary and no-network harness.
 mod inspect;
+/// M3 inspect JSON schema v0.
+mod inspect_json_schema;
+#[cfg(test)]
+/// Tests for the M3 inspect JSON schema.
+mod inspect_json_schema_tests;
 /// Shared M3 inspect evidence model.
 mod inspect_model;
 #[cfg(test)]
@@ -100,6 +105,7 @@ pub use executable_identity::*;
 pub use extraction::*;
 pub use fixtures::*;
 pub use inspect::*;
+pub use inspect_json_schema::*;
 pub use inspect_model::*;
 pub use integrity::*;
 pub use m2_fixtures::*;
