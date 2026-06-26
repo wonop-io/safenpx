@@ -173,6 +173,28 @@ fn inspect_action_reports_m2_closure_blockers_as_static_metadata() {
 }
 
 #[test]
+/// Human inspect output includes root package facts, not only counts.
+fn inspect_human_output_reports_root_package_facts() {
+    let tarball = package_tarball(
+        r#"{
+            "name":"create-example",
+            "version":"1.2.3",
+            "bin":{"create-example":"bin/create.js","helper":"bin/helper.js"},
+            "scripts":{"postinstall":"node postinstall.js"},
+            "dependencies":{"left-pad":"1.3.0"}
+        }"#,
+    );
+    let cli = Cli::parse_from(["safe-npx", "inspect", "create-example@1.2.3"]);
+    let output = run_with_resolver(&cli, &verified_resolver(&tarball));
+
+    assert!(output.contains("create-example -> bin/create.js"));
+    assert!(output.contains("helper -> bin/helper.js"));
+    assert!(output.contains("postinstall -> node postinstall.js"));
+    assert!(output.contains("left-pad (Runtime) 1.3.0 [declaration_only]"));
+    assert!(output.contains("Recommendation: Ask"));
+}
+
+#[test]
 /// Unsupported inspect specs stop before any network download.
 fn inspect_action_keeps_unsupported_specs_before_downloads() {
     let cli = Cli::parse_from(["safe-npx", "inspect", "create-example@latest"]);

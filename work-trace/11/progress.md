@@ -12,3 +12,6 @@
 - Added fixture coverage for normal metadata, missing optional metadata,
   lifecycle scripts, dependency declarations, multiple bins, and malformed
   package metadata.
+- Prior-commit review found human inspect output only exposed counts; added
+  compact fact rendering for bins, lifecycle scripts, and declaration-only
+  dependencies.

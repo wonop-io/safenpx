@@ -54,10 +54,51 @@ pub fn render_static_extraction(static_extraction: Option<&StaticExtractionEvide
         static_extraction.metadata.package_json_path.display(),
         static_extraction.artifact_size_bytes,
         static_extraction.file_count,
-        static_extraction.metadata.bins.len(),
-        static_extraction.metadata.lifecycle_scripts.len(),
-        static_extraction.metadata.dependency_declarations.len()
+        render_bins(&static_extraction.metadata.bins),
+        render_pairs(&static_extraction.metadata.lifecycle_scripts),
+        render_dependency_declarations(&static_extraction.metadata.dependency_declarations)
     )
+}
+
+/// Render bin declarations for human inspect output.
+fn render_bins(bins: &std::collections::BTreeMap<String, String>) -> String {
+    render_pairs(bins)
+}
+
+/// Render string maps in deterministic order.
+fn render_pairs(values: &std::collections::BTreeMap<String, String>) -> String {
+    if values.is_empty() {
+        return "none".to_string();
+    }
+
+    values
+        .iter()
+        .map(|(name, value)| format!("{name} -> {value}"))
+        .collect::<Vec<_>>()
+        .join(", ")
+}
+
+/// Render dependency declarations without implying verified closure.
+fn render_dependency_declarations(
+    declarations: &[crate::ExtractedDependencyDeclaration],
+) -> String {
+    if declarations.is_empty() {
+        return "none".to_string();
+    }
+
+    declarations
+        .iter()
+        .map(|dependency| {
+            format!(
+                "{} ({:?}) {} [{}]",
+                dependency.name,
+                dependency.kind,
+                dependency.requirement,
+                dependency.declaration_status
+            )
+        })
+        .collect::<Vec<_>>()
+        .join(", ")
 }
 
 /// Return a per-process extraction root for inspect metadata.
