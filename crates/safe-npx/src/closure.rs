@@ -3,7 +3,10 @@
 //! These contracts describe evidence gathered before execution. They do not
 //! grant permission to run package code.
 
-use crate::{ArtifactIdentity, CommandIntent, RegistrySource};
+use crate::{
+    serialize_redacted_string, serialize_redacted_string_vec, ArtifactIdentity, CommandIntent,
+    RegistrySource,
+};
 use serde::Serialize;
 
 /// Inspect-time execution closure evidence.
@@ -58,8 +61,10 @@ impl ExecutionClosureEvidence {
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 pub struct ClosureCommandIdentity {
     /// Requested package spec string.
+    #[serde(serialize_with = "serialize_redacted_string")]
     pub requested: String,
     /// Forwarded arguments preserved exactly after CLI parsing.
+    #[serde(serialize_with = "serialize_redacted_string_vec")]
     pub forwarded_args: Vec<String>,
 }
 

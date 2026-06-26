@@ -1,8 +1,8 @@
 //! Shared M3 inspect evidence model for human and JSON reports.
 
 use crate::{
-    ArtifactIdentity, AuthorityContext, CommandIntent, Decision, M1Reason, RegistryEvidence,
-    ResolvedPackage, StaticExtractionEvidence,
+    serialize_redacted_option_string, ArtifactIdentity, AuthorityContext, CommandIntent, Decision,
+    M1Reason, RegistryEvidence, ResolvedPackage, StaticExtractionEvidence,
 };
 use serde::Serialize;
 
@@ -54,6 +54,7 @@ pub struct InspectRefusalFact {
     pub downloaded: bool,
     /// Optional failure detail.
     #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(serialize_with = "serialize_redacted_option_string")]
     pub detail: Option<String>,
 }
 

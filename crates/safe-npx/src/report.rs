@@ -8,11 +8,11 @@ use crate::report_inspect::{
     build_inspect_model, render_model_facts, render_model_intent, render_model_summary,
 };
 use crate::{
-    extract_for_inspect, inspect_raw_spec_with_probe, ArtifactIdentity, Cli,
-    ClosureCommandIdentity, ClosureDecision, CommandIntent, CountingProbe, Decision, InspectModel,
-    M1Reason, M2Reason, NpmMetadataClient, PackageSpecParse, RegistryEvidence, RegistryTransport,
-    ReqwestRegistryTransport, ReqwestTarballTransport, ResolvedPackage, RootArtifactResolver,
-    StaticExtractionEvidence, TarballDownloader, TarballTransport,
+    extract_for_inspect, inspect_raw_spec_with_probe, serialize_redacted_string, ArtifactIdentity,
+    Cli, ClosureCommandIdentity, ClosureDecision, CommandIntent, CountingProbe, Decision,
+    InspectModel, M1Reason, M2Reason, NpmMetadataClient, PackageSpecParse, RegistryEvidence,
+    RegistryTransport, ReqwestRegistryTransport, ReqwestTarballTransport, ResolvedPackage,
+    RootArtifactResolver, StaticExtractionEvidence, TarballDownloader, TarballTransport,
 };
 use serde::Serialize;
 
@@ -34,6 +34,7 @@ pub struct CliRunOutput {
 #[derive(Debug, PartialEq, Eq, Serialize)]
 pub struct Report {
     /// Package spec requested by the caller.
+    #[serde(serialize_with = "serialize_redacted_string")]
     pub package_spec: String,
     /// Parsed command intent before registry or artifact access.
     pub intent: CommandIntent,
@@ -81,6 +82,7 @@ pub enum M1Evidence {
         /// Whether root artifact bytes were downloaded before the failure.
         downloaded: bool,
         /// Short deterministic detail for humans and tests.
+        #[serde(serialize_with = "serialize_redacted_string")]
         detail: String,
     },
 }
@@ -244,7 +246,7 @@ pub fn render_report(cli: &Cli, report: &Report) -> anyhow::Result<String> {
 
     Ok(format!(
         "Package: {}\nStatus: {}\nRecommendation: {:?}\n{}{}{}\nThis Rust CLI does not execute package code in M1.\nNext step: expand evidence beyond the root artifact.\n",
-        report.package_spec,
+        crate::redact_report_value(&report.package_spec),
         report.status,
         report.inspect.decision.recommendation,
         render_model_intent(&report.inspect),
@@ -289,7 +291,7 @@ pub fn render_m2_execution_refusal_report(
 
     Ok(format!(
         "Execution refused\nPackage: {}\nDecision: {}\nReasons: {}\nRequired next action: {}\nExit code: {}\nNo package code was executed.\n",
-        report.command.requested,
+        crate::redact_report_value(&report.command.requested),
         closure_decision_name(&report.decision),
         format_m2_reasons(&report.reasons),
         required_next_action_name(&report.required_next_action),

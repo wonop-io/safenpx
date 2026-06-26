@@ -1,0 +1,15 @@
+# safe-npx M3 authority redaction fixture manifest
+# format: id|kind|input|expected_absent|expected_present
+url_userinfo|report_value|https://secret-token@registry.example.test/npm/pkg.tgz|secret-token|<redacted>@
+url_query_token|report_value|https://registry.example.test/pkg.tgz?_authToken=secret-token&ok=1|secret-token|_authToken=<redacted>
+home_path_macos|report_value|/Users/alice/private/project/pkg|/Users/alice|<home>
+home_path_linux|report_value|/home/alice/private/project/pkg|/home/alice|<home>
+absolute_cwd|cwd|/workspace/customer/private-repo|/workspace/customer/private-repo|<absolute-path>
+temp_cwd|cwd|/tmp/safe-npx-private/pkg|/tmp/safe-npx-private|<temp>
+ci_context|source_context|ci|manual_user|automation
+agent_context|source_context|agent_skill|manual_user|coding_agent
+scoped_registry|registry|https://secret-token@registry.example.test/npm/?token=secret-token|secret-token|<redacted>@
+auth_header|report_value|Authorization: Bearer secret-token|secret-token|Authorization: <redacted>
+npmrc_auth|report_value|//registry.example.test/:_authToken=secret-token|secret-token|_authToken=<redacted>
+arg_key_value|report_value|--token=secret-token|secret-token|--token=<redacted>
+arg_wrapped_npmrc|report_value|--config=//registry.example.test/:_authToken=secret-token|secret-token|_authToken=<redacted>

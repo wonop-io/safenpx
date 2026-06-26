@@ -1,11 +1,11 @@
 //! Shared inspect-model construction and human rendering helpers.
 
 use crate::{
-    build_authority_context, package_scope_for_parse, render_static_extraction, CommandIntent,
-    Decision, InspectAuthorityContext, InspectDecision, InspectExecutionState,
-    InspectExecutionStateKind, InspectFacts, InspectHeuristic, InspectHeuristicKind, InspectModel,
-    InspectNextAction, InspectRefusalFact, InspectRefusalState, M1Evidence, M1Reason,
-    PackageSpecParse, SourceContext, UnsupportedSpecCategory,
+    build_authority_context, package_scope_for_parse, redact_report_value, redact_report_values,
+    render_static_extraction, CommandIntent, Decision, InspectAuthorityContext, InspectDecision,
+    InspectExecutionState, InspectExecutionStateKind, InspectFacts, InspectHeuristic,
+    InspectHeuristicKind, InspectModel, InspectNextAction, InspectRefusalFact, InspectRefusalState,
+    M1Evidence, M1Reason, PackageSpecParse, SourceContext, UnsupportedSpecCategory,
 };
 
 /// Build the shared inspect model from current report facts.
@@ -94,14 +94,14 @@ pub(crate) fn render_model_intent(model: &InspectModel) -> String {
         ),
         PackageSpecParse::Unsupported(unsupported) => format!(
             "Rejected: {}\nReason: {}\nCategory: {}\nDownloaded: {}\n",
-            model.facts.command.requested,
+            redact_report_value(&model.facts.command.requested),
             reason_name(&unsupported.reason),
             unsupported_category_name(&unsupported.category),
             unsupported.downloaded
         ),
         PackageSpecParse::Malformed(malformed) => format!(
             "Rejected: {}\nReason: {}\nDownloaded: {}\n",
-            model.facts.command.requested,
+            redact_report_value(&model.facts.command.requested),
             reason_name(&malformed.reason),
             malformed.downloaded
         ),
@@ -114,7 +114,7 @@ pub(crate) fn render_model_facts(model: &InspectModel) -> String {
         let detail = refusal
             .detail
             .as_ref()
-            .map(|detail| format!("Detail: {detail}\n"))
+            .map(|detail| format!("Detail: {}\n", redact_report_value(detail)))
             .unwrap_or_default();
         return format!(
             "M1 evidence: {}\nReason: {}\nDownloaded: {}\n",
@@ -142,9 +142,9 @@ pub(crate) fn render_model_facts(model: &InspectModel) -> String {
         "M1 evidence: verified\nResolved: {}@{}\nRegistry: {}\nRegistry evidence: {}\nTarball: {}\nIntegrity: {}\nIntegrity metadata: {}\nDigest: {}:{}\n{}",
         resolved_package.name,
         resolved_package.version,
-        resolved_package.registry.url,
+        redact_report_value(&resolved_package.registry.url),
         registry_evidence.evidence_boundary,
-        resolved_package.tarball_url,
+        redact_report_value(&resolved_package.tarball_url),
         "verified",
         resolved_package.integrity,
         artifact_identity.digest_algorithm,
@@ -382,7 +382,7 @@ fn format_forwarded_args(args: &[String]) -> String {
         return "[]".to_string();
     }
 
-    args.join(" ")
+    redact_report_values(args).join(" ")
 }
 
 /// Return the stable serialized name for an M1 reason.

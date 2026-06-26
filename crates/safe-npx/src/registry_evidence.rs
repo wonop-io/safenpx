@@ -1,6 +1,9 @@
 //! Registry metadata evidence extraction for inspect reports.
 
-use crate::{PackageSpec, RegistrySource, ResolvedPackage};
+use crate::{
+    serialize_redacted_option_string, serialize_redacted_string, PackageSpec, RegistrySource,
+    ResolvedPackage,
+};
 use serde::Serialize;
 use serde_json::Value;
 use std::collections::BTreeMap;
@@ -36,6 +39,7 @@ pub struct RegistryEvidence {
     pub publisher: Option<RegistryPerson>,
     /// Repository URL or shorthand from registry metadata when available.
     #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(serialize_with = "serialize_redacted_option_string")]
     pub repository: Option<String>,
     /// License string from registry metadata when available.
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -46,6 +50,7 @@ pub struct RegistryEvidence {
     /// Dist integrity for the resolved exact version.
     pub dist_integrity: String,
     /// Dist tarball URL for the resolved exact version.
+    #[serde(serialize_with = "serialize_redacted_string")]
     pub tarball_url: String,
     /// Boundary note preventing registry facts from being treated as tarball facts.
     pub evidence_boundary: &'static str,

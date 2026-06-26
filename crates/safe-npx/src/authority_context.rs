@@ -1,6 +1,9 @@
 //! Authority-context classification and redaction for inspect reports.
 
-use crate::{PackageSpecParse, RegistrySource, SourceContext};
+use crate::{
+    digest_report_key, redact_report_value, redact_report_value_for_home, PackageSpecParse,
+    RegistrySource, SourceContext,
+};
 use serde::Serialize;
 use std::path::{Path, PathBuf};
 
@@ -55,6 +58,13 @@ pub struct AuthorityRegistryContext {
 pub struct AuthorityIdentityContext {
     /// Stable note explaining that display strings are not identity keys.
     pub status: &'static str,
+    /// Canonical command identity with secrets and local paths removed.
+    pub command_intent_key: String,
+    /// Canonical cwd trust class used before receipt semantics exist.
+    pub cwd_trust_class: String,
+    /// Canonical registry identity without credentials.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub registry_key: Option<String>,
 }
 
 /// Runner context category.
@@ -125,22 +135,36 @@ pub fn build_authority_context_with_paths(
     cwd: Option<&Path>,
     home: Option<&Path>,
 ) -> AuthorityContext {
+    let command_intent = redacted_command(command, home);
+    let cwd = cwd
+        .map(|path| redacted_path(path, home))
+        .unwrap_or_else(|| AuthorityDisplayValue {
+            category: "unknown".to_string(),
+            display: "unknown".to_string(),
+        });
+    let raw_registry = registry;
+    let registry = raw_registry.map(redacted_registry);
+    let identity = AuthorityIdentityContext {
+        status: "canonical_redacted_identity_v0",
+        command_intent_key: digest_report_key(
+            "command",
+            &redact_report_value_for_home(command, home),
+        ),
+        cwd_trust_class: cwd.category.clone(),
+        registry_key: raw_registry
+            .zip(registry.as_ref())
+            .and_then(|(raw, redacted)| registry_identity_key(raw, redacted)),
+    };
+
     AuthorityContext {
-        command_intent: redacted_command(command, home),
+        command_intent,
         source_context: source_context.clone(),
         runner_context: runner_context(source_context),
         actor_context: actor_context(source_context),
-        cwd: cwd
-            .map(|path| redacted_path(path, home))
-            .unwrap_or_else(|| AuthorityDisplayValue {
-                category: "unknown".to_string(),
-                display: "unknown".to_string(),
-            }),
-        registry: registry.map(redacted_registry),
+        cwd,
+        registry,
         package_scope,
-        identity: AuthorityIdentityContext {
-            status: "reserved_for_canonical_receipt_identity",
-        },
+        identity,
         sandbox_boundary:
             "authority context describes ambient process authority; it is not sandboxing",
     }
@@ -192,7 +216,7 @@ fn redacted_registry(registry: &RegistrySource) -> AuthorityRegistryContext {
 
     AuthorityRegistryContext {
         category,
-        display_url: redact_url_credentials(&registry.url),
+        display_url: redact_report_value(&registry.url),
         scope: registry.scope.clone(),
     }
 }
@@ -200,7 +224,7 @@ fn redacted_registry(registry: &RegistrySource) -> AuthorityRegistryContext {
 fn redacted_command(command: &str, home: Option<&Path>) -> AuthorityDisplayValue {
     AuthorityDisplayValue {
         category: "command_intent".to_string(),
-        display: redact_inline_home(command, home),
+        display: redact_report_value_for_home(command, home),
     }
 }
 
@@ -214,9 +238,9 @@ fn redacted_path(path: &Path, home: Option<&Path>) -> AuthorityDisplayValue {
                     format!("<home>/{}", suffix.display())
                 }
             })
-            .unwrap_or_else(|_| path.display().to_string())
+            .unwrap_or_else(|_| redacted_absolute_path(path))
     } else {
-        path.display().to_string()
+        redacted_absolute_path(path)
     };
     let category = cwd_category(path, home);
 
@@ -225,7 +249,7 @@ fn redacted_path(path: &Path, home: Option<&Path>) -> AuthorityDisplayValue {
 
 fn cwd_category(path: &Path, home: Option<&Path>) -> String {
     let temp = std::env::temp_dir();
-    if path.starts_with(&temp) {
+    if path.starts_with(&temp) || path.starts_with("/tmp") {
         return "temp_directory".to_string();
     }
     if home.is_some_and(|home| path.starts_with(home)) {
@@ -238,23 +262,26 @@ fn cwd_category(path: &Path, home: Option<&Path>) -> String {
     "unknown".to_string()
 }
 
-fn redact_url_credentials(url: &str) -> String {
-    let Some(scheme_end) = url.find("://") else {
-        return url.to_string();
-    };
-    let authority_start = scheme_end + 3;
-    let Some(at_offset) = url[authority_start..].find('@') else {
-        return url.to_string();
-    };
-    let at = authority_start + at_offset;
-    format!("{}<redacted>@{}", &url[..authority_start], &url[at + 1..])
+fn registry_identity_key(
+    raw_registry: &RegistrySource,
+    redacted_registry: &AuthorityRegistryContext,
+) -> Option<String> {
+    Some(format!(
+        "{:?}:{}:{}",
+        redacted_registry.category,
+        raw_registry.scope.as_deref().unwrap_or("unscoped"),
+        digest_report_key("registry", &redact_report_value(&raw_registry.url))
+    ))
 }
 
-fn redact_inline_home(value: &str, home: Option<&Path>) -> String {
-    let Some(home) = home else {
-        return value.to_string();
-    };
-    value.replace(home.to_string_lossy().as_ref(), "<home>")
+fn redacted_absolute_path(path: &Path) -> String {
+    if path.is_absolute() {
+        if path.starts_with(std::env::temp_dir()) || path.starts_with("/tmp") {
+            return "<temp>".to_string();
+        }
+        return "<absolute-path>".to_string();
+    }
+    path.display().to_string()
 }
 
 fn home_dir() -> Option<PathBuf> {

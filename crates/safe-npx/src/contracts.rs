@@ -1,15 +1,18 @@
 //! Shared M1 contracts for command parsing, resolver evidence, and artifacts.
 
+use crate::{serialize_redacted_string, serialize_redacted_string_vec};
 use serde::Serialize;
 
 /// Caller intent after CLI parsing, before any registry or artifact access.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 pub struct CommandIntent {
     /// Raw package spec requested by the caller.
+    #[serde(serialize_with = "serialize_redacted_string")]
     pub requested: String,
     /// Parsed package spec state.
     pub package_spec: PackageSpecParse,
     /// Arguments that should be passed to the selected package binary.
+    #[serde(serialize_with = "serialize_redacted_string_vec")]
     pub forwarded_args: Vec<String>,
 }
 
@@ -63,6 +66,7 @@ pub enum PackageSpecParse {
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 pub struct PackageSpec {
     /// Original spec string as supplied by the caller.
+    #[serde(serialize_with = "serialize_redacted_string")]
     pub raw: String,
     /// Package name, including scope when present.
     pub name: String,
@@ -130,6 +134,7 @@ pub struct MalformedSpec {
     /// Stable M1 reason for the refusal.
     pub reason: M1Reason,
     /// Original malformed input.
+    #[serde(serialize_with = "serialize_redacted_string")]
     pub raw: String,
     /// Whether any registry or tarball bytes were downloaded before refusal.
     pub downloaded: bool,
@@ -139,6 +144,7 @@ pub struct MalformedSpec {
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 pub struct RegistrySource {
     /// Registry URL used for metadata and tarball lookup.
+    #[serde(serialize_with = "serialize_redacted_string")]
     pub url: String,
     /// Optional scope that selected this registry.
     pub scope: Option<String>,
@@ -154,6 +160,7 @@ pub struct ResolvedPackage {
     /// Registry used to resolve the package.
     pub registry: RegistrySource,
     /// Tarball URL from registry metadata.
+    #[serde(serialize_with = "serialize_redacted_string")]
     pub tarball_url: String,
     /// Integrity string from registry metadata.
     pub integrity: String,

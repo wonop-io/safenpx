@@ -67,6 +67,8 @@ mod parser;
 mod process_boundary;
 /// Deterministic M2 resolution-to-execution race fixtures.
 mod race_matrix;
+/// Shared redaction helpers for reports.
+mod redaction;
 /// Public npm registry metadata client.
 mod registry;
 /// Registry metadata evidence extraction.
@@ -77,6 +79,9 @@ mod registry_precedence;
 mod report;
 /// Shared inspect-model report helpers.
 mod report_inspect;
+#[cfg(test)]
+/// Tests for report redaction boundaries.
+mod report_redaction_tests;
 #[cfg(test)]
 /// Tests for M1 report rendering.
 mod report_tests;
@@ -102,6 +107,7 @@ pub use m3_inspect::*;
 pub use package_evidence::*;
 pub use parser::*;
 pub use race_matrix::*;
+pub use redaction::*;
 pub use registry::*;
 pub use registry_evidence::*;
 pub use registry_precedence::*;

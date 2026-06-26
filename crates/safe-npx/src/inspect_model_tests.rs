@@ -342,10 +342,21 @@ fn authority_context_redacts_registry_tokens_and_separates_identity_fields() {
         "https://<redacted>@registry.example.test/npm/"
     );
     assert!(!registry.display_url.contains("secret-token"));
-    assert_eq!(
-        authority.identity.status,
-        "reserved_for_canonical_receipt_identity"
+    assert_eq!(authority.identity.status, "canonical_redacted_identity_v0");
+    assert_eq!(authority.identity.cwd_trust_class, "trusted_project");
+    assert!(authority.identity.command_intent_key.starts_with("sha256:"));
+    assert_ne!(
+        authority.identity.command_intent_key,
+        authority.command_intent.display
     );
+    let registry_key = authority
+        .identity
+        .registry_key
+        .as_deref()
+        .expect("registry key should exist");
+    assert!(registry_key.starts_with("ScopedRegistry:@scope:sha256:"));
+    assert!(!registry_key.contains("secret-token"));
+    assert!(!registry_key.contains("<redacted>"));
 }
 
 #[test]
