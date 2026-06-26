@@ -1,0 +1,311 @@
+{
+  "package_spec": "create-example@1.2.3",
+  "recommendation": "ask",
+  "status": "m3_inspect",
+  "note": "fixture",
+  "schema_version": "0.1",
+  "artifact": {
+    "name": "create-example",
+    "version": "1.2.3",
+    "integrity": "sha512-example",
+    "digest_algorithm": "sha512",
+    "digest": "digest-example"
+  },
+  "command_intent": {
+    "requested": "create-example@1.2.3",
+    "package_spec": {
+      "state": "supported",
+      "raw": "create-example@1.2.3",
+      "name": "create-example",
+      "version": "1.2.3",
+      "scope": null
+    },
+    "forwarded_args": []
+  },
+  "source_context": "unknown",
+  "authority_context": {
+    "command_intent": {
+      "category": "command_intent",
+      "display": "create-example@1.2.3"
+    },
+    "source_context": "unknown",
+    "runner_context": "unknown",
+    "actor_context": "unknown",
+    "cwd": {
+      "category": "trusted_project",
+      "display": "<absolute-path>"
+    },
+    "package_scope": "unscoped",
+    "identity": {
+      "status": "canonical_redacted_identity_v0",
+      "command_intent_key": "sha256:5a32b3a97051ce834beb943a4afbfc29b1f305368f9871d30eee826e0e86647b",
+      "cwd_trust_class": "trusted_project"
+    },
+    "sandbox_boundary": "authority context describes ambient process authority; it is not sandboxing"
+  },
+  "facts": {
+    "command": {
+      "requested": "create-example@1.2.3",
+      "package_spec": {
+        "state": "supported",
+        "raw": "create-example@1.2.3",
+        "name": "create-example",
+        "version": "1.2.3",
+        "scope": null
+      },
+      "forwarded_args": []
+    },
+    "resolved_package": {
+      "name": "create-example",
+      "version": "1.2.3",
+      "registry": {
+        "url": "https://registry.npmjs.org/",
+        "scope": null
+      },
+      "tarball_url": "https://registry.npmjs.org/create-example/-/create-example-1.2.3.tgz",
+      "integrity": "sha512-example"
+    },
+    "registry": {
+      "registry": {
+        "url": "https://registry.npmjs.org/",
+        "scope": null
+      },
+      "package_scope": "unscoped",
+      "name": "create-example",
+      "version": "1.2.3",
+      "dist_integrity": "sha512-example",
+      "tarball_url": "https://registry.npmjs.org/create-example/-/create-example-1.2.3.tgz",
+      "evidence_boundary": "registry metadata is not proof of tarball package contents"
+    },
+    "artifact": {
+      "name": "create-example",
+      "version": "1.2.3",
+      "integrity": "sha512-example",
+      "digest_algorithm": "sha512",
+      "digest": "digest-example"
+    },
+    "root_package": {
+      "metadata": {
+        "name": "create-example",
+        "version": "1.2.3",
+        "bins": {
+          "create-example": "bin/create-example.js"
+        },
+        "lifecycle_scripts": {
+          "postinstall": "node scripts/postinstall.js"
+        },
+        "dependency_declarations": [
+          {
+            "name": "left-pad",
+            "requirement": "^1.3.0",
+            "kind": "runtime",
+            "declaration_status": "declared_not_verified"
+          }
+        ],
+        "optional_evidence": {},
+        "package_json_path": "package/package.json"
+      },
+      "artifact_size_bytes": 4096,
+      "file_count": 7,
+      "status": "extracted"
+    }
+  },
+  "heuristics": [
+    {
+      "kind": "lifecycle_scripts_present",
+      "source": "static_root_package_metadata",
+      "message": "root package declares postinstall",
+      "report_only": true
+    },
+    {
+      "kind": "dependency_declarations_present",
+      "source": "static_root_package_metadata",
+      "message": "root package declares runtime dependencies",
+      "report_only": true
+    }
+  ],
+  "external_evidence": null,
+  "attestations": null,
+  "release_diff": null,
+  "decision": "ask",
+  "reasons": [
+    "fixture"
+  ],
+  "required_next_action": "ask_user",
+  "execution": null,
+  "exit_code": 0,
+  "inspect": {
+    "facts": {
+      "command": {
+        "requested": "create-example@1.2.3",
+        "package_spec": {
+          "state": "supported",
+          "raw": "create-example@1.2.3",
+          "name": "create-example",
+          "version": "1.2.3",
+          "scope": null
+        },
+        "forwarded_args": []
+      },
+      "resolved_package": {
+        "name": "create-example",
+        "version": "1.2.3",
+        "registry": {
+          "url": "https://registry.npmjs.org/",
+          "scope": null
+        },
+        "tarball_url": "https://registry.npmjs.org/create-example/-/create-example-1.2.3.tgz",
+        "integrity": "sha512-example"
+      },
+      "registry": {
+        "registry": {
+          "url": "https://registry.npmjs.org/",
+          "scope": null
+        },
+        "package_scope": "unscoped",
+        "name": "create-example",
+        "version": "1.2.3",
+        "dist_integrity": "sha512-example",
+        "tarball_url": "https://registry.npmjs.org/create-example/-/create-example-1.2.3.tgz",
+        "evidence_boundary": "registry metadata is not proof of tarball package contents"
+      },
+      "artifact": {
+        "name": "create-example",
+        "version": "1.2.3",
+        "integrity": "sha512-example",
+        "digest_algorithm": "sha512",
+        "digest": "digest-example"
+      },
+      "root_package": {
+        "metadata": {
+          "name": "create-example",
+          "version": "1.2.3",
+          "bins": {
+            "create-example": "bin/create-example.js"
+          },
+          "lifecycle_scripts": {
+            "postinstall": "node scripts/postinstall.js"
+          },
+          "dependency_declarations": [
+            {
+              "name": "left-pad",
+              "requirement": "^1.3.0",
+              "kind": "runtime",
+              "declaration_status": "declared_not_verified"
+            }
+          ],
+          "optional_evidence": {},
+          "package_json_path": "package/package.json"
+        },
+        "artifact_size_bytes": 4096,
+        "file_count": 7,
+        "status": "extracted"
+      }
+    },
+    "heuristics": [
+      {
+        "kind": "lifecycle_scripts_present",
+        "source": "static_root_package_metadata",
+        "message": "root package declares postinstall",
+        "report_only": true
+      },
+      {
+        "kind": "dependency_declarations_present",
+        "source": "static_root_package_metadata",
+        "message": "root package declares runtime dependencies",
+        "report_only": true
+      }
+    ],
+    "decision": {
+      "recommendation": "ask",
+      "reasons": [
+        "fixture"
+      ],
+      "required_next_action": "ask_user"
+    },
+    "authority_context": {
+      "redacted": {
+        "command_intent": {
+          "category": "command_intent",
+          "display": "create-example@1.2.3"
+        },
+        "source_context": "unknown",
+        "runner_context": "unknown",
+        "actor_context": "unknown",
+        "cwd": {
+          "category": "trusted_project",
+          "display": "<absolute-path>"
+        },
+        "package_scope": "unscoped",
+        "identity": {
+          "status": "canonical_redacted_identity_v0",
+          "command_intent_key": "sha256:5a32b3a97051ce834beb943a4afbfc29b1f305368f9871d30eee826e0e86647b",
+          "cwd_trust_class": "trusted_project"
+        },
+        "sandbox_boundary": "authority context describes ambient process authority; it is not sandboxing"
+      }
+    },
+    "execution_state": {
+      "state": "stopped_before_execution",
+      "package_code_executed": false
+    }
+  },
+  "m1": {
+    "state": "verified",
+    "resolved_package": {
+      "name": "create-example",
+      "version": "1.2.3",
+      "registry": {
+        "url": "https://registry.npmjs.org/",
+        "scope": null
+      },
+      "tarball_url": "https://registry.npmjs.org/create-example/-/create-example-1.2.3.tgz",
+      "integrity": "sha512-example"
+    },
+    "integrity_status": "verified",
+    "artifact_identity": {
+      "name": "create-example",
+      "version": "1.2.3",
+      "integrity": "sha512-example",
+      "digest_algorithm": "sha512",
+      "digest": "digest-example"
+    },
+    "registry_evidence": {
+      "registry": {
+        "url": "https://registry.npmjs.org/",
+        "scope": null
+      },
+      "package_scope": "unscoped",
+      "name": "create-example",
+      "version": "1.2.3",
+      "dist_integrity": "sha512-example",
+      "tarball_url": "https://registry.npmjs.org/create-example/-/create-example-1.2.3.tgz",
+      "evidence_boundary": "registry metadata is not proof of tarball package contents"
+    },
+    "static_extraction": {
+      "metadata": {
+        "name": "create-example",
+        "version": "1.2.3",
+        "bins": {
+          "create-example": "bin/create-example.js"
+        },
+        "lifecycle_scripts": {
+          "postinstall": "node scripts/postinstall.js"
+        },
+        "dependency_declarations": [
+          {
+            "name": "left-pad",
+            "requirement": "^1.3.0",
+            "kind": "runtime",
+            "declaration_status": "declared_not_verified"
+          }
+        ],
+        "optional_evidence": {},
+        "package_json_path": "package/package.json"
+      },
+      "artifact_size_bytes": 4096,
+      "file_count": 7,
+      "status": "extracted"
+    }
+  }
+}

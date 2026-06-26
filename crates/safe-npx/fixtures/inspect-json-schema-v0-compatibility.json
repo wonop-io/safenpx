@@ -1,0 +1,46 @@
+{
+  "compatibility_rules": {
+    "additive_fields_allowed_within_0x": true,
+    "enum_additions_require_schema_bump": true,
+    "enum_semantic_changes_require_migration_note": true
+  },
+  "decisions": [
+    "allow",
+    "ask",
+    "deny",
+    "unsupported",
+    "inspection_error",
+    "execution_refused"
+  ],
+  "required_next_actions": [
+    "none",
+    "ask_user",
+    "retry_narrower_command",
+    "inspect_only",
+    "explicit_override",
+    "unsupported"
+  ],
+  "schema_version": "0.1",
+  "semantic_cases": {
+    "execution_refusal": {
+      "decision": "execution_refused",
+      "exit_code": 5,
+      "required_next_action": "unsupported"
+    },
+    "inspection_failure": {
+      "decision": "inspection_error",
+      "exit_code": 3,
+      "required_next_action": "inspect_only"
+    },
+    "unsupported_input": {
+      "decision": "unsupported",
+      "exit_code": 2,
+      "required_next_action": "retry_narrower_command"
+    },
+    "verified_ask": {
+      "decision": "ask",
+      "exit_code": 0,
+      "required_next_action": "ask_user"
+    }
+  }
+}

@@ -10,5 +10,6 @@ exports_files([
     "LICENSE.md",
     "README.md",
     ".github/workflows/ci.yml",
+    "docs/inspect-json-schema-v0.md",
     "justfile",
 ])

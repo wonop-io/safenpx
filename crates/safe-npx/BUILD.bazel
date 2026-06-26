@@ -31,6 +31,7 @@ rust_library(
         "src/executable_identity.rs",
         "src/fixtures.rs",
         "src/inspect_json_schema.rs",
+        "src/inspect_json_golden_tests.rs",
         "src/inspect_json_schema_tests.rs",
         "src/integrity.rs",
         "src/inspect.rs",
@@ -62,7 +63,12 @@ rust_library(
         "fixtures/canary-fixture-manifest.txt",
         "fixtures/delegation-feasibility-manifest.txt",
         "fixtures/inspect-json-schema-v0-ask.json",
+        "fixtures/inspect-json-schema-v0-compatibility.json",
         "fixtures/inspect-json-schema-v0-failure.json",
+        "fixtures/inspect-json-schema-v0-integrity-failure.json",
+        "fixtures/inspect-json-schema-v0-missing-optional-metadata.json",
+        "fixtures/inspect-json-schema-v0-redacted-authority.json",
+        "fixtures/inspect-json-schema-v0-static-blockers.json",
         "fixtures/inspect-json-schema-v0-unsupported.json",
         "fixtures/m1-fixture-manifest.txt",
         "fixtures/m2-closure-fixture-manifest.txt",
@@ -90,5 +96,8 @@ rust_binary(
 rust_test(
     name = "safe-npx_test",
     crate = ":safe-npx-lib",
+    data = [
+        "//:docs/inspect-json-schema-v0.md",
+    ],
     deps = RUST_DEPS,
 )

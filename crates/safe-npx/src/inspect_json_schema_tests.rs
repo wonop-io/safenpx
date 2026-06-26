@@ -9,10 +9,13 @@ use crate::{
     InspectRefusalFact, InspectRefusalState, M1Evidence, M1Reason, M2Reason, PackageSpec,
     RegistrySource, Report, SourceContext, UnsupportedSpec, UnsupportedSpecCategory,
 };
+use serde::Serialize;
 use serde_json::Value;
 use std::path::Path;
 
 const ASK_GOLDEN: &str = include_str!("../fixtures/inspect-json-schema-v0-ask.json");
+const COMPATIBILITY_GOLDEN: &str =
+    include_str!("../fixtures/inspect-json-schema-v0-compatibility.json");
 const UNSUPPORTED_GOLDEN: &str =
     include_str!("../fixtures/inspect-json-schema-v0-unsupported.json");
 const FAILURE_GOLDEN: &str = include_str!("../fixtures/inspect-json-schema-v0-failure.json");
@@ -149,6 +152,23 @@ fn inspect_json_enum_vocabulary_is_stable() {
     );
 }
 
+/// Verifies enum vocabulary and semantic mappings stay reviewable.
+#[test]
+fn inspect_json_schema_compatibility_manifest_is_stable() {
+    let manifest = serde_json::to_string_pretty(&compatibility_manifest())
+        .expect("compatibility manifest should serialize");
+    let manifest = format!("{manifest}\n");
+    let cases = [(
+        "inspect-json-schema-v0-compatibility.json",
+        manifest.as_str(),
+    )];
+
+    if maybe_update_schema_goldens(&cases) {
+        return;
+    }
+    assert_schema_golden(COMPATIBILITY_GOLDEN, &manifest);
+}
+
 /// Verifies compatibility-critical schema fields stay aligned with golden fixtures.
 #[test]
 fn inspect_json_schema_golden_fixtures_are_stable() {
@@ -157,11 +177,74 @@ fn inspect_json_schema_golden_fixtures_are_stable() {
     let unsupported = render_schema_golden(&json_cli, &unsupported_report());
     let failure = render_schema_golden(&json_cli, &failed_report());
 
-    maybe_print_schema_goldens(&ask, &unsupported, &failure);
+    let cases = [
+        ("inspect-json-schema-v0-ask.json", ask.as_str()),
+        (
+            "inspect-json-schema-v0-unsupported.json",
+            unsupported.as_str(),
+        ),
+        ("inspect-json-schema-v0-failure.json", failure.as_str()),
+    ];
+    maybe_print_schema_goldens(&cases);
+    if maybe_update_schema_goldens(&cases) {
+        return;
+    }
 
     assert_schema_golden(ASK_GOLDEN, &ask);
     assert_schema_golden(UNSUPPORTED_GOLDEN, &unsupported);
     assert_schema_golden(FAILURE_GOLDEN, &failure);
+}
+
+/// Builds a stable compatibility manifest for enum and semantic mapping review.
+fn compatibility_manifest() -> Value {
+    let m2_refusal = build_m2_execution_refusal_report(
+        ClosureCommandIdentity {
+            requested: "create-example@1.2.3".to_string(),
+            forwarded_args: Vec::new(),
+        },
+        vec![M2Reason::LifecycleScriptPresent],
+    );
+
+    serde_json::json!({
+        "schema_version": "0.1",
+        "decisions": [
+            "allow",
+            "ask",
+            "deny",
+            "unsupported",
+            "inspection_error",
+            "execution_refused"
+        ],
+        "required_next_actions": [
+            "none",
+            "ask_user",
+            "retry_narrower_command",
+            "inspect_only",
+            "explicit_override",
+            "unsupported"
+        ],
+        "semantic_cases": {
+            "verified_ask": semantic_case(build_inspect_json_report(&verified_ask_report())),
+            "unsupported_input": semantic_case(build_inspect_json_report(&unsupported_report())),
+            "inspection_failure": semantic_case(build_inspect_json_report(&failed_report())),
+            "execution_refusal": semantic_case(build_m2_execution_refusal_json_report(&m2_refusal)),
+        },
+        "compatibility_rules": {
+            "additive_fields_allowed_within_0x": true,
+            "enum_additions_require_schema_bump": true,
+            "enum_semantic_changes_require_migration_note": true
+        }
+    })
+}
+
+/// Extracts the compatibility-critical fields from JSON schema output.
+fn semantic_case(value: impl Serialize) -> Value {
+    let value = serde_json::to_value(value).expect("schema output should serialize");
+    serde_json::json!({
+        "decision": value["decision"],
+        "required_next_action": value["required_next_action"],
+        "exit_code": value["exit_code"],
+    })
 }
 
 /// Renders a schema golden with a single trailing newline.
@@ -173,14 +256,27 @@ fn render_schema_golden(cli: &Cli, report: &Report) -> String {
 }
 
 /// Prints regenerated fixture contents when explicitly requested.
-fn maybe_print_schema_goldens(ask: &str, unsupported: &str, failure: &str) {
+fn maybe_print_schema_goldens(cases: &[(&str, &str)]) {
     if std::env::var_os("SAFE_NPX_PRINT_SCHEMA_GOLDENS").is_none() {
         return;
     }
 
-    eprintln!("--- inspect-json-schema-v0-ask.json ---\n{ask}");
-    eprintln!("--- inspect-json-schema-v0-unsupported.json ---\n{unsupported}");
-    eprintln!("--- inspect-json-schema-v0-failure.json ---\n{failure}");
+    for (name, value) in cases {
+        eprintln!("--- {name} ---\n{value}");
+    }
+}
+
+/// Updates base schema fixture files when explicitly requested.
+fn maybe_update_schema_goldens(cases: &[(&str, &str)]) -> bool {
+    if std::env::var_os("SAFE_NPX_UPDATE_SCHEMA_GOLDENS").is_none() {
+        return false;
+    }
+
+    let fixture_root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("fixtures");
+    for (name, value) in cases {
+        std::fs::write(fixture_root.join(name), value).expect("fixture should update");
+    }
+    true
 }
 
 /// Compares full pretty-printed schema JSON against a checked-in fixture.

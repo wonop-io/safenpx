@@ -37,6 +37,9 @@ mod extraction_tests;
 mod fixtures;
 /// Inspect boundary and no-network harness.
 mod inspect;
+#[cfg(test)]
+/// Expanded deterministic golden tests for M3 inspect JSON.
+mod inspect_json_golden_tests;
 /// M3 inspect JSON schema v0.
 mod inspect_json_schema;
 #[cfg(test)]
