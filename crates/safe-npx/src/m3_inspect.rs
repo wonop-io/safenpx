@@ -5,6 +5,7 @@ use crate::{
 };
 use serde::Serialize;
 use std::path::PathBuf;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 /// Static metadata extracted during M3 inspect mode.
@@ -103,10 +104,13 @@ fn render_dependency_declarations(
 
 /// Return a per-process extraction root for inspect metadata.
 fn inspect_extraction_root(artifact_identity: &ArtifactIdentity) -> PathBuf {
+    static NEXT_INSPECT_ROOT_ID: AtomicU64 = AtomicU64::new(0);
+
     let unique = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .map(|duration| duration.as_nanos())
         .unwrap_or_default();
+    let sequence = NEXT_INSPECT_ROOT_ID.fetch_add(1, Ordering::Relaxed);
     let safe_name = artifact_identity
         .name
         .chars()
@@ -120,9 +124,10 @@ fn inspect_extraction_root(artifact_identity: &ArtifactIdentity) -> PathBuf {
         .collect::<String>();
 
     std::env::temp_dir().join(format!(
-        "safe-npx-inspect-{}-{}-{}-{}",
+        "safe-npx-inspect-{}-{}-{}-{}-{}",
         std::process::id(),
         unique,
+        sequence,
         safe_name,
         artifact_identity.version
     ))

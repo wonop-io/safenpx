@@ -4,7 +4,7 @@ use crate::{
     render_static_extraction, CommandIntent, Decision, InspectAuthorityContext, InspectDecision,
     InspectExecutionState, InspectExecutionStateKind, InspectFacts, InspectHeuristic,
     InspectHeuristicKind, InspectModel, InspectNextAction, InspectRefusalFact, InspectRefusalState,
-    M1Evidence, M1Reason, PackageSpecParse, UnsupportedSpecCategory,
+    M1Evidence, M1Reason, PackageSpecParse, RegistrySource, UnsupportedSpecCategory,
 };
 
 /// Build the shared inspect model from current report facts.
@@ -115,7 +115,8 @@ pub(crate) fn render_model_facts(model: &InspectModel) -> String {
             .map(|detail| format!("Detail: {detail}\n"))
             .unwrap_or_default();
         return format!(
-            "M1 evidence: no_download\nReason: {}\nDownloaded: {}\n",
+            "M1 evidence: {}\nReason: {}\nDownloaded: {}\n",
+            refusal_state_name(&refusal.state),
             reason_name(&refusal.reason),
             refusal.downloaded
         ) + &detail;
@@ -147,6 +148,30 @@ pub(crate) fn render_model_facts(model: &InspectModel) -> String {
         artifact_identity.digest_algorithm,
         artifact_identity.digest,
         render_static_extraction(model.facts.root_package.as_ref())
+    )
+}
+
+/// Render shared decision, authority, execution, and heuristic model fields.
+pub(crate) fn render_model_summary(model: &InspectModel) -> String {
+    format!(
+        "Decision reasons: {}\nRequired next action: {}\nAuthority: command={}, registry={}, package_scope={}\nExecution: {}; package code executed: {}\n{}",
+        model.inspect_decision_reasons(),
+        next_action_name(&model.decision.required_next_action),
+        model.authority_context.command_intent,
+        model
+            .authority_context
+            .registry_source
+            .as_ref()
+            .map(format_registry_source)
+            .unwrap_or_else(|| "unknown".to_string()),
+        model
+            .authority_context
+            .package_scope
+            .as_deref()
+            .unwrap_or("unknown"),
+        execution_state_name(&model.execution_state.state),
+        model.execution_state.package_code_executed,
+        render_model_heuristics(model)
     )
 }
 
@@ -187,6 +212,44 @@ fn inspect_heuristics(facts: &InspectFacts) -> Vec<InspectHeuristic> {
         }
     }
     heuristics
+}
+
+/// Render report-only heuristics from the shared model.
+fn render_model_heuristics(model: &InspectModel) -> String {
+    if model.heuristics.is_empty() {
+        return "Heuristics: none\n".to_string();
+    }
+
+    let mut output = String::from("Heuristics:\n");
+    for heuristic in &model.heuristics {
+        let mode = if heuristic.report_only {
+            "report_only"
+        } else {
+            "policy"
+        };
+        output.push_str(&format!(
+            "- {} [{}] {}: {}\n",
+            heuristic_kind_name(&heuristic.kind),
+            mode,
+            heuristic.source,
+            heuristic.message
+        ));
+    }
+    output
+}
+
+trait InspectDecisionReasonFormatting {
+    fn inspect_decision_reasons(&self) -> String;
+}
+
+impl InspectDecisionReasonFormatting for InspectModel {
+    fn inspect_decision_reasons(&self) -> String {
+        if self.decision.reasons.is_empty() {
+            return "none".to_string();
+        }
+
+        self.decision.reasons.join(", ")
+    }
 }
 
 /// Build decision summary without letting M3 heuristics hard-deny execution.
@@ -231,6 +294,50 @@ fn inspect_authority_context(facts: &InspectFacts) -> InspectAuthorityContext {
         registry_source,
         package_scope,
     }
+}
+
+/// Return the stable serialized name for a refusal state.
+fn refusal_state_name(state: &InspectRefusalState) -> &'static str {
+    match state {
+        InspectRefusalState::NoDownload => "no_download",
+        InspectRefusalState::Failed => "failed",
+    }
+}
+
+/// Return the stable serialized name for a next action.
+fn next_action_name(action: &InspectNextAction) -> &'static str {
+    match action {
+        InspectNextAction::AskUser => "ask_user",
+        InspectNextAction::Stop => "stop",
+        InspectNextAction::RetryNarrowerCommand => "retry_narrower_command",
+    }
+}
+
+/// Return the stable serialized name for an execution state.
+fn execution_state_name(state: &InspectExecutionStateKind) -> &'static str {
+    match state {
+        InspectExecutionStateKind::StoppedBeforeExecution => "stopped_before_execution",
+        InspectExecutionStateKind::RefusedBeforeExecution => "refused_before_execution",
+        InspectExecutionStateKind::FailedBeforeExecution => "failed_before_execution",
+    }
+}
+
+/// Return the stable serialized name for a heuristic kind.
+fn heuristic_kind_name(kind: &InspectHeuristicKind) -> &'static str {
+    match kind {
+        InspectHeuristicKind::LifecycleScriptsPresent => "lifecycle_scripts_present",
+        InspectHeuristicKind::DependencyDeclarationsPresent => "dependency_declarations_present",
+        InspectHeuristicKind::UnusualPackageShape => "unusual_package_shape",
+    }
+}
+
+/// Format a registry source without exposing it as proof of package contents.
+fn format_registry_source(registry: &RegistrySource) -> String {
+    registry
+        .scope
+        .as_ref()
+        .map(|scope| format!("{} ({scope})", registry.url))
+        .unwrap_or_else(|| registry.url.clone())
 }
 
 /// Format forwarded CLI arguments for human output.

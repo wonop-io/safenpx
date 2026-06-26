@@ -4,7 +4,9 @@ use crate::m2_report::{
     closure_decision_for_m2_reasons, closure_decision_name, exit_code_for_closure_decision,
     format_m2_reasons, required_next_action_for_m2_reasons, required_next_action_name,
 };
-use crate::report_inspect::{build_inspect_model, render_model_facts, render_model_intent};
+use crate::report_inspect::{
+    build_inspect_model, render_model_facts, render_model_intent, render_model_summary,
+};
 use crate::{
     extract_for_inspect, inspect_raw_spec_with_probe, ArtifactIdentity, Cli,
     ClosureCommandIdentity, ClosureDecision, CommandIntent, CountingProbe, Decision, InspectModel,
@@ -241,12 +243,13 @@ pub fn render_report(cli: &Cli, report: &Report) -> anyhow::Result<String> {
     }
 
     Ok(format!(
-        "Package: {}\nStatus: {}\nRecommendation: {:?}\n{}{}\nThis Rust CLI does not execute package code in M1.\nNext step: expand evidence beyond the root artifact.\n",
+        "Package: {}\nStatus: {}\nRecommendation: {:?}\n{}{}{}\nThis Rust CLI does not execute package code in M1.\nNext step: expand evidence beyond the root artifact.\n",
         report.package_spec,
         report.status,
         report.inspect.decision.recommendation,
         render_model_intent(&report.inspect),
-        render_model_facts(&report.inspect)
+        render_model_facts(&report.inspect),
+        render_model_summary(&report.inspect)
     ))
 }
 

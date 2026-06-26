@@ -166,9 +166,37 @@ fn human_and_json_renderers_consume_shared_model() {
 
     assert!(human.contains("postinstall -> node postinstall.js"));
     assert!(human.contains("left-pad (Runtime) 1.3.0 [declaration_only]"));
+    assert!(human.contains("- lifecycle_scripts_present [report_only]"));
+    assert!(human.contains("- dependency_declarations_present [report_only]"));
+    assert!(human.contains("Decision reasons: m3_heuristics_report_only"));
+    assert!(human.contains("Required next action: ask_user"));
+    assert!(human.contains("Authority: command=create-example@1.2.3"));
+    assert!(human.contains("Execution: stopped_before_execution; package code executed: false"));
     assert!(json.contains("\"inspect\""));
     assert!(json.contains("\"heuristics\""));
     assert!(json.contains("\"report_only\": true"));
+}
+
+#[test]
+fn human_renderer_preserves_failed_refusal_state_from_shared_model() {
+    let tarball = package_tarball(r#"{"name":"create-example","version":"1.2.3"}"#);
+    let resolver = RootArtifactResolver::new(
+        NpmMetadataClient::public(StubRegistryTransport::ok(metadata_body(&integrity_for(
+            b"different bytes",
+        )))),
+        TarballDownloader::new(StubTarballTransport::ok(tarball)),
+    );
+    let cli = Cli::parse_from(["safe-npx", "inspect", "create-example@1.2.3"]);
+    let report = build_report_with_resolver(&cli, &resolver);
+    let human = render_report(&cli, &report).expect("human report should render");
+
+    assert_eq!(
+        report.inspect.execution_state.state,
+        InspectExecutionStateKind::FailedBeforeExecution
+    );
+    assert!(human.contains("M1 evidence: failed"));
+    assert!(human.contains("Reason: integrity_mismatch"));
+    assert!(!human.contains("M1 evidence: no_download"));
 }
 
 fn inspect_report(tarball: &[u8]) -> crate::Report {
