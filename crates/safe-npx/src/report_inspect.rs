@@ -1,0 +1,270 @@
+//! Shared inspect-model construction and human rendering helpers.
+
+use crate::{
+    render_static_extraction, CommandIntent, Decision, InspectAuthorityContext, InspectDecision,
+    InspectExecutionState, InspectExecutionStateKind, InspectFacts, InspectHeuristic,
+    InspectHeuristicKind, InspectModel, InspectNextAction, InspectRefusalFact, InspectRefusalState,
+    M1Evidence, M1Reason, PackageSpecParse, UnsupportedSpecCategory,
+};
+
+/// Build the shared inspect model from current report facts.
+pub(crate) fn build_inspect_model(
+    intent: &CommandIntent,
+    recommendation: &Decision,
+    m1: &M1Evidence,
+) -> InspectModel {
+    let (facts, execution_state) = match m1 {
+        M1Evidence::NoDownload { reason, downloaded } => (
+            InspectFacts {
+                command: intent.clone(),
+                resolved_package: None,
+                registry: None,
+                artifact: None,
+                root_package: None,
+                refusal: Some(InspectRefusalFact {
+                    state: InspectRefusalState::NoDownload,
+                    reason: reason.clone(),
+                    downloaded: *downloaded,
+                    detail: None,
+                }),
+            },
+            InspectExecutionStateKind::RefusedBeforeExecution,
+        ),
+        M1Evidence::Failed {
+            reason,
+            downloaded,
+            detail,
+        } => (
+            InspectFacts {
+                command: intent.clone(),
+                resolved_package: None,
+                registry: None,
+                artifact: None,
+                root_package: None,
+                refusal: Some(InspectRefusalFact {
+                    state: InspectRefusalState::Failed,
+                    reason: reason.clone(),
+                    downloaded: *downloaded,
+                    detail: Some(detail.clone()),
+                }),
+            },
+            InspectExecutionStateKind::FailedBeforeExecution,
+        ),
+        M1Evidence::Verified {
+            resolved_package,
+            artifact_identity,
+            registry_evidence,
+            static_extraction,
+            ..
+        } => (
+            InspectFacts {
+                command: intent.clone(),
+                resolved_package: Some(resolved_package.clone()),
+                registry: Some(registry_evidence.clone()),
+                artifact: Some(artifact_identity.clone()),
+                root_package: static_extraction.clone(),
+                refusal: None,
+            },
+            InspectExecutionStateKind::StoppedBeforeExecution,
+        ),
+    };
+
+    InspectModel {
+        heuristics: inspect_heuristics(&facts),
+        decision: inspect_decision(recommendation, &facts),
+        authority_context: inspect_authority_context(&facts),
+        execution_state: InspectExecutionState {
+            state: execution_state,
+            package_code_executed: false,
+        },
+        facts,
+    }
+}
+
+/// Render command intent from the shared model for terminal output.
+pub(crate) fn render_model_intent(model: &InspectModel) -> String {
+    match &model.facts.command.package_spec {
+        PackageSpecParse::Supported(package_spec) => format!(
+            "Parsed: {}@{}\nForwarded args: {}\n",
+            package_spec.name,
+            package_spec.version,
+            format_forwarded_args(&model.facts.command.forwarded_args)
+        ),
+        PackageSpecParse::Unsupported(unsupported) => format!(
+            "Rejected: {}\nReason: {}\nCategory: {}\nDownloaded: {}\n",
+            model.facts.command.requested,
+            reason_name(&unsupported.reason),
+            unsupported_category_name(&unsupported.category),
+            unsupported.downloaded
+        ),
+        PackageSpecParse::Malformed(malformed) => format!(
+            "Rejected: {}\nReason: {}\nDownloaded: {}\n",
+            model.facts.command.requested,
+            reason_name(&malformed.reason),
+            malformed.downloaded
+        ),
+    }
+}
+
+/// Render shared inspect model facts for terminal output.
+pub(crate) fn render_model_facts(model: &InspectModel) -> String {
+    if let Some(refusal) = &model.facts.refusal {
+        let detail = refusal
+            .detail
+            .as_ref()
+            .map(|detail| format!("Detail: {detail}\n"))
+            .unwrap_or_default();
+        return format!(
+            "M1 evidence: no_download\nReason: {}\nDownloaded: {}\n",
+            reason_name(&refusal.reason),
+            refusal.downloaded
+        ) + &detail;
+    }
+
+    let Some(resolved_package) = &model.facts.resolved_package else {
+        return String::new();
+    };
+    let artifact_identity = model
+        .facts
+        .artifact
+        .as_ref()
+        .expect("verified facts should include artifact identity");
+    let registry_evidence = model
+        .facts
+        .registry
+        .as_ref()
+        .expect("verified facts should include registry evidence");
+
+    format!(
+        "M1 evidence: verified\nResolved: {}@{}\nRegistry: {}\nRegistry evidence: {}\nTarball: {}\nIntegrity: {}\nIntegrity metadata: {}\nDigest: {}:{}\n{}",
+        resolved_package.name,
+        resolved_package.version,
+        resolved_package.registry.url,
+        registry_evidence.evidence_boundary,
+        resolved_package.tarball_url,
+        "verified",
+        resolved_package.integrity,
+        artifact_identity.digest_algorithm,
+        artifact_identity.digest,
+        render_static_extraction(model.facts.root_package.as_ref())
+    )
+}
+
+/// Build report-only M3 heuristics from extracted facts.
+fn inspect_heuristics(facts: &InspectFacts) -> Vec<InspectHeuristic> {
+    let mut heuristics = Vec::new();
+    if let Some(root_package) = &facts.root_package {
+        let metadata = &root_package.metadata;
+        if !metadata.lifecycle_scripts.is_empty() {
+            heuristics.push(InspectHeuristic {
+                kind: InspectHeuristicKind::LifecycleScriptsPresent,
+                source: "root_package.package_json",
+                message: format!(
+                    "{} lifecycle script(s) declared",
+                    metadata.lifecycle_scripts.len()
+                ),
+                report_only: true,
+            });
+        }
+        if !metadata.dependency_declarations.is_empty() {
+            heuristics.push(InspectHeuristic {
+                kind: InspectHeuristicKind::DependencyDeclarationsPresent,
+                source: "root_package.package_json",
+                message: format!(
+                    "{} dependency declaration(s) are not verified closure",
+                    metadata.dependency_declarations.len()
+                ),
+                report_only: true,
+            });
+        }
+        if metadata.bins.is_empty() {
+            heuristics.push(InspectHeuristic {
+                kind: InspectHeuristicKind::UnusualPackageShape,
+                source: "root_package.package_json",
+                message: "no package binary declaration found".to_string(),
+                report_only: true,
+            });
+        }
+    }
+    heuristics
+}
+
+/// Build decision summary without letting M3 heuristics hard-deny execution.
+fn inspect_decision(recommendation: &Decision, facts: &InspectFacts) -> InspectDecision {
+    let required_next_action = match recommendation {
+        Decision::Deny => InspectNextAction::Stop,
+        Decision::Allow | Decision::Ask => InspectNextAction::AskUser,
+    };
+    let reasons = facts
+        .refusal
+        .as_ref()
+        .map(|refusal| vec![reason_name(&refusal.reason).to_string()])
+        .unwrap_or_else(|| vec!["m3_heuristics_report_only".to_string()]);
+
+    InspectDecision {
+        recommendation: recommendation.clone(),
+        reasons,
+        required_next_action,
+    }
+}
+
+/// Build initial authority context; #12 and #60 refine this later.
+fn inspect_authority_context(facts: &InspectFacts) -> InspectAuthorityContext {
+    let registry_source = facts
+        .registry
+        .as_ref()
+        .map(|registry| registry.registry.clone());
+    let package_scope = match &facts.command.package_spec {
+        PackageSpecParse::Supported(package_spec) => Some(
+            package_spec
+                .scope
+                .as_ref()
+                .map(|_| "scoped")
+                .unwrap_or("unscoped")
+                .to_string(),
+        ),
+        PackageSpecParse::Unsupported(_) | PackageSpecParse::Malformed(_) => None,
+    };
+
+    InspectAuthorityContext {
+        command_intent: facts.command.requested.clone(),
+        registry_source,
+        package_scope,
+    }
+}
+
+/// Format forwarded CLI arguments for human output.
+fn format_forwarded_args(args: &[String]) -> String {
+    if args.is_empty() {
+        return "[]".to_string();
+    }
+
+    args.join(" ")
+}
+
+/// Return the stable serialized name for an M1 reason.
+fn reason_name(reason: &M1Reason) -> &'static str {
+    match reason {
+        M1Reason::UnsupportedSpec => "unsupported_spec",
+        M1Reason::MalformedSpec => "malformed_spec",
+        M1Reason::RegistryError => "registry_error",
+        M1Reason::IntegrityMismatch => "integrity_mismatch",
+        M1Reason::MissingPackage => "missing_package",
+        M1Reason::MissingVersion => "missing_version",
+    }
+}
+
+/// Return the stable serialized name for an unsupported spec category.
+fn unsupported_category_name(category: &UnsupportedSpecCategory) -> &'static str {
+    match category {
+        UnsupportedSpecCategory::UnversionedName => "unversioned_name",
+        UnsupportedSpecCategory::VersionRange => "version_range",
+        UnsupportedSpecCategory::GitUrl => "git_url",
+        UnsupportedSpecCategory::LocalPath => "local_path",
+        UnsupportedSpecCategory::TarballUrl => "tarball_url",
+        UnsupportedSpecCategory::Alias => "alias",
+        UnsupportedSpecCategory::MultipleSpecs => "multiple_specs",
+        UnsupportedSpecCategory::NpmExecVariant => "npm_exec_variant",
+        UnsupportedSpecCategory::Other => "other",
+    }
+}

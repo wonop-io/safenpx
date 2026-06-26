@@ -34,6 +34,11 @@ mod extraction_tests;
 mod fixtures;
 /// Inspect boundary and no-network harness.
 mod inspect;
+/// Shared M3 inspect evidence model.
+mod inspect_model;
+#[cfg(test)]
+/// Tests for the shared M3 inspect evidence model.
+mod inspect_model_tests;
 /// Root artifact integrity verifier.
 mod integrity;
 /// M2 closure fixture manifest support.
@@ -67,6 +72,8 @@ mod registry_evidence;
 mod registry_precedence;
 /// Human and JSON report rendering.
 mod report;
+/// Shared inspect-model report helpers.
+mod report_inspect;
 #[cfg(test)]
 /// Tests for M1 report rendering.
 mod report_tests;
@@ -84,6 +91,7 @@ pub use executable_identity::*;
 pub use extraction::*;
 pub use fixtures::*;
 pub use inspect::*;
+pub use inspect_model::*;
 pub use integrity::*;
 pub use m2_fixtures::*;
 pub use m3_inspect::*;

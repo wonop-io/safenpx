@@ -4,12 +4,13 @@ use crate::m2_report::{
     closure_decision_for_m2_reasons, closure_decision_name, exit_code_for_closure_decision,
     format_m2_reasons, required_next_action_for_m2_reasons, required_next_action_name,
 };
+use crate::report_inspect::{build_inspect_model, render_model_facts, render_model_intent};
 use crate::{
-    extract_for_inspect, inspect_raw_spec_with_probe, render_static_extraction, ArtifactIdentity,
-    Cli, ClosureCommandIdentity, ClosureDecision, CommandIntent, CountingProbe, Decision, M1Reason,
-    M2Reason, NpmMetadataClient, PackageSpecParse, RegistryEvidence, RegistryTransport,
+    extract_for_inspect, inspect_raw_spec_with_probe, ArtifactIdentity, Cli,
+    ClosureCommandIdentity, ClosureDecision, CommandIntent, CountingProbe, Decision, InspectModel,
+    M1Reason, M2Reason, NpmMetadataClient, PackageSpecParse, RegistryEvidence, RegistryTransport,
     ReqwestRegistryTransport, ReqwestTarballTransport, ResolvedPackage, RootArtifactResolver,
-    StaticExtractionEvidence, TarballDownloader, TarballTransport, UnsupportedSpecCategory,
+    StaticExtractionEvidence, TarballDownloader, TarballTransport,
 };
 use serde::Serialize;
 
@@ -40,6 +41,8 @@ pub struct Report {
     pub status: &'static str,
     /// Human-readable note explaining the current boundary.
     pub note: &'static str,
+    /// Shared inspect model consumed by human and JSON renderers.
+    pub inspect: InspectModel,
     /// M1 resolver and artifact evidence.
     pub m1: M1Evidence,
 }
@@ -210,6 +213,8 @@ pub fn build_report_with_resolver<M: RegistryTransport, D: TarballTransport>(
         ),
     };
 
+    let inspect = build_inspect_model(&intent, &recommendation, &m1);
+
     Report {
         package_spec: raw_package_spec,
         intent,
@@ -224,6 +229,7 @@ pub fn build_report_with_resolver<M: RegistryTransport, D: TarballTransport>(
         } else {
             "M1 resolves and verifies the root artifact only; dependency graphs, lifecycle scripts, maintainer reputation, and policy scoring are not implemented yet."
         },
+        inspect,
         m1,
     }
 }
@@ -234,11 +240,13 @@ pub fn render_report(cli: &Cli, report: &Report) -> anyhow::Result<String> {
         return Ok(serde_json::to_string_pretty(report)?);
     }
 
-    let intent_line = render_intent(report);
-    let evidence_line = render_evidence(&report.m1);
     Ok(format!(
         "Package: {}\nStatus: {}\nRecommendation: {:?}\n{}{}\nThis Rust CLI does not execute package code in M1.\nNext step: expand evidence beyond the root artifact.\n",
-        report.package_spec, report.status, report.recommendation, intent_line, evidence_line
+        report.package_spec,
+        report.status,
+        report.inspect.decision.recommendation,
+        render_model_intent(&report.inspect),
+        render_model_facts(&report.inspect)
     ))
 }
 
@@ -327,106 +335,5 @@ pub(crate) fn exit_code_for_report(report: &Report) -> i32 {
             M1Reason::UnsupportedSpec | M1Reason::MalformedSpec => 2,
             M1Reason::RegistryError | M1Reason::MissingPackage | M1Reason::MissingVersion => 3,
         },
-    }
-}
-
-/// Render command intent for terminal output.
-fn render_intent(report: &Report) -> String {
-    match &report.intent.package_spec {
-        PackageSpecParse::Supported(package_spec) => format!(
-            "Parsed: {}@{}\nForwarded args: {}\n",
-            package_spec.name,
-            package_spec.version,
-            format_forwarded_args(&report.intent.forwarded_args)
-        ),
-        PackageSpecParse::Unsupported(unsupported) => format!(
-            "Rejected: {}\nReason: {}\nCategory: {}\nDownloaded: {}\n",
-            report.intent.requested,
-            reason_name(&unsupported.reason),
-            unsupported_category_name(&unsupported.category),
-            unsupported.downloaded
-        ),
-        PackageSpecParse::Malformed(malformed) => format!(
-            "Rejected: {}\nReason: {}\nDownloaded: {}\n",
-            report.intent.requested,
-            reason_name(&malformed.reason),
-            malformed.downloaded
-        ),
-    }
-}
-
-/// Render M1 evidence for terminal output.
-fn render_evidence(m1: &M1Evidence) -> String {
-    match m1 {
-        M1Evidence::NoDownload { reason, downloaded } => format!(
-            "M1 evidence: no_download\nReason: {}\nDownloaded: {}\n",
-            reason_name(reason),
-            downloaded
-        ),
-        M1Evidence::Verified {
-            resolved_package,
-            integrity_status,
-            artifact_identity,
-            registry_evidence,
-            static_extraction,
-        } => format!(
-            "M1 evidence: verified\nResolved: {}@{}\nRegistry: {}\nRegistry evidence: {}\nTarball: {}\nIntegrity: {}\nIntegrity metadata: {}\nDigest: {}:{}\n{}",
-            resolved_package.name,
-            resolved_package.version,
-            resolved_package.registry.url,
-            registry_evidence.evidence_boundary,
-            resolved_package.tarball_url,
-            integrity_status,
-            resolved_package.integrity,
-            artifact_identity.digest_algorithm,
-            artifact_identity.digest,
-            render_static_extraction(static_extraction.as_ref())
-        ),
-        M1Evidence::Failed {
-            reason,
-            downloaded,
-            detail,
-        } => format!(
-            "M1 evidence: failed\nReason: {}\nDownloaded: {}\nDetail: {}\n",
-            reason_name(reason),
-            downloaded,
-            detail
-        ),
-    }
-}
-
-/// Format forwarded CLI arguments for human output.
-fn format_forwarded_args(args: &[String]) -> String {
-    if args.is_empty() {
-        return "[]".to_string();
-    }
-
-    args.join(" ")
-}
-
-/// Return the stable serialized name for an M1 reason.
-fn reason_name(reason: &M1Reason) -> &'static str {
-    match reason {
-        M1Reason::UnsupportedSpec => "unsupported_spec",
-        M1Reason::MalformedSpec => "malformed_spec",
-        M1Reason::RegistryError => "registry_error",
-        M1Reason::IntegrityMismatch => "integrity_mismatch",
-        M1Reason::MissingPackage => "missing_package",
-        M1Reason::MissingVersion => "missing_version",
-    }
-}
-
-/// Return the stable serialized name for an unsupported spec category.
-fn unsupported_category_name(category: &UnsupportedSpecCategory) -> &'static str {
-    match category {
-        UnsupportedSpecCategory::UnversionedName => "unversioned_name",
-        UnsupportedSpecCategory::VersionRange => "version_range",
-        UnsupportedSpecCategory::GitUrl => "git_url",
-        UnsupportedSpecCategory::LocalPath => "local_path",
-        UnsupportedSpecCategory::TarballUrl => "tarball_url",
-        UnsupportedSpecCategory::Alias => "alias",
-        UnsupportedSpecCategory::MultipleSpecs => "multiple_specs",
-        UnsupportedSpecCategory::NpmExecVariant => "npm_exec_variant",
-        UnsupportedSpecCategory::Other => "other",
     }
 }

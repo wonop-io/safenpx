@@ -8,7 +8,7 @@ use std::path::PathBuf;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 /// Static metadata extracted during M3 inspect mode.
-#[derive(Debug, PartialEq, Eq, Serialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 pub struct StaticExtractionEvidence {
     /// Parsed package metadata tied to the verified artifact.
     pub metadata: ExtractedPackageMetadata,
