@@ -48,6 +48,8 @@ mod m3_inspect_canary_tests;
 #[cfg(test)]
 /// Tests for the M3 inspect-mode pipeline.
 mod m3_inspect_tests;
+/// Optional package evidence parsed from verified package metadata.
+mod package_evidence;
 /// Package metadata parsing helpers for static extraction.
 mod package_metadata;
 /// Package spec parser.
@@ -85,6 +87,7 @@ pub use inspect::*;
 pub use integrity::*;
 pub use m2_fixtures::*;
 pub use m3_inspect::*;
+pub use package_evidence::*;
 pub use parser::*;
 pub use race_matrix::*;
 pub use registry::*;

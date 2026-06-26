@@ -17,22 +17,31 @@ use tar::{Builder, EntryType, Header};
 /// Verifies normal package extraction and metadata identity.
 fn extracts_normal_package_metadata_tied_to_artifact_identity() {
     let workspace = TempRoot::new();
-    let tarball = tgz_with_files(&[(
-        "package/package.json",
-        r#"{
+    let tarball = tgz_with_files(&[
+        (
+            "package/package.json",
+            r#"{
             "name": "create-example",
             "version": "1.2.3",
             "bin": {"create-example": "bin/create.js"},
+            "repository": {"url": "https://github.com/example/create-example"},
+            "license": "Apache-2.0",
+            "maintainers": [{"name": "Alice"}],
+            "signatures": [{"keyid": "fixture"}],
             "scripts": {"postinstall": "node postinstall.js", "test": "node test.js"},
             "dependencies": {"left-pad": "^1.3.0"}
         }"#,
-    )]);
+        ),
+        ("package/bin/create.js", "console.log('fixture')"),
+    ]);
     let artifact = artifact_identity();
 
     let extracted = extract_verified_root_artifact(&tarball, artifact.clone(), workspace.path())
         .expect("normal package should extract");
 
     assert_eq!(extracted.artifact, artifact);
+    assert_eq!(extracted.artifact_size_bytes, tarball.len());
+    assert_eq!(extracted.file_count, 2);
     assert_eq!(extracted.metadata.name.as_deref(), Some("create-example"));
     assert_eq!(extracted.metadata.version.as_deref(), Some("1.2.3"));
     assert_eq!(
@@ -53,6 +62,23 @@ fn extracts_normal_package_metadata_tied_to_artifact_identity() {
     );
     assert_eq!(extracted.metadata.lifecycle_scripts.len(), 1);
     assert_eq!(extracted.metadata.dependency_declarations.len(), 1);
+    assert_eq!(
+        extracted.metadata.dependency_declarations[0].declaration_status,
+        "declaration_only"
+    );
+    assert_eq!(
+        extracted.metadata.optional_evidence.repository.as_deref(),
+        Some("https://github.com/example/create-example")
+    );
+    assert_eq!(
+        extracted.metadata.optional_evidence.license.as_deref(),
+        Some("Apache-2.0")
+    );
+    assert!(extracted
+        .metadata
+        .optional_evidence
+        .provenance
+        .contains_key("signatures"));
     assert!(workspace.path().join("package/package.json").exists());
 }
 
@@ -91,6 +117,8 @@ fn extracts_m2_lifecycle_and_dependency_surfaces() {
     let extracted = extract_verified_root_artifact(&tarball, artifact_identity(), workspace.path())
         .expect("metadata package should extract");
 
+    assert_eq!(extracted.file_count, 1);
+    assert_eq!(extracted.metadata.optional_evidence.repository, None);
     assert_eq!(extracted.metadata.lifecycle_scripts.len(), 11);
     assert!(!extracted.metadata.lifecycle_scripts.contains_key("test"));
     assert_dependency(
@@ -126,7 +154,28 @@ fn extracts_m2_lifecycle_and_dependency_surfaces() {
 }
 
 #[test]
-/// Verifies traversal entries are rejected before writing outside root.
+fn extracts_multiple_bin_declarations() {
+    let workspace = TempRoot::new();
+    let tarball = tgz_with_files(&[(
+        "package/package.json",
+        r#"{
+            "name":"create-example",
+            "version":"1.2.3",
+            "bin":{"create-example":"bin/create.js","helper":"bin/helper.js"}
+        }"#,
+    )]);
+
+    let extracted = extract_verified_root_artifact(&tarball, artifact_identity(), workspace.path())
+        .expect("package with multiple bins should extract");
+
+    assert_eq!(extracted.metadata.bins.len(), 2);
+    assert_eq!(
+        extracted.metadata.bins.get("helper").map(String::as_str),
+        Some("bin/helper.js")
+    );
+}
+
+#[test]
 fn rejects_path_traversal_entries() {
     let workspace = TempRoot::new();
     let tarball = tgz_with_raw_file_path("../escape.txt", b"escape");

@@ -1,10 +1,3 @@
-//! M2 direct-extract execution prototype for local fixture packages.
-//!
-//! This module is intentionally fixture-only. It never invokes npm, npx,
-//! package-manager install commands, lifecycle scripts, or shell fallbacks.
-//! It is compiled only for tests so package-controlled marker files cannot
-//! enable production execution.
-
 use crate::process_boundary::ProcessInvocation;
 use crate::{
     assess_static_closure_blockers, identify_selected_bin, select_package_bin,
@@ -331,6 +324,7 @@ mod tests {
                 name: "left-pad".to_string(),
                 requirement: "^6.0.0".to_string(),
                 kind,
+                declaration_status: "declaration_only",
             });
 
         let outcome = execute_local_fixture_package(
@@ -422,6 +416,8 @@ mod tests {
             },
             extraction_root: extraction_root.to_path_buf(),
             metadata,
+            artifact_size_bytes: 0,
+            file_count: 0,
         }
     }
 
@@ -434,6 +430,7 @@ mod tests {
             bins: BTreeMap::from(bins.map(|(name, path)| (name.to_string(), path.to_string()))),
             lifecycle_scripts: BTreeMap::new(),
             dependency_declarations: Vec::new(),
+            optional_evidence: crate::PackageOptionalEvidence::default(),
             package_json_path: PathBuf::from("package/package.json"),
         }
     }

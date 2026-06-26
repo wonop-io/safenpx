@@ -238,6 +238,8 @@ mod tests {
             },
             extraction_root: extraction_root.to_path_buf(),
             metadata: metadata_with_bins([("create-example", "bin/create.js")]),
+            artifact_size_bytes: 0,
+            file_count: 0,
         }
     }
 
@@ -250,6 +252,7 @@ mod tests {
             bins: BTreeMap::from(bins.map(|(name, path)| (name.to_string(), path.to_string()))),
             lifecycle_scripts: BTreeMap::new(),
             dependency_declarations: Vec::new(),
+            optional_evidence: crate::PackageOptionalEvidence::default(),
             package_json_path: PathBuf::from("package/package.json"),
         }
     }

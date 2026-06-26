@@ -327,6 +327,7 @@ mod tests {
             bins,
             lifecycle_scripts: BTreeMap::new(),
             dependency_declarations: Vec::new(),
+            optional_evidence: crate::PackageOptionalEvidence::default(),
             package_json_path: PathBuf::from("package/package.json"),
         }
     }

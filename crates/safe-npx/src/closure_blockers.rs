@@ -240,6 +240,7 @@ mod tests {
             bins: BTreeMap::new(),
             lifecycle_scripts,
             dependency_declarations,
+            optional_evidence: crate::PackageOptionalEvidence::default(),
             package_json_path: PathBuf::from("package/package.json"),
         }
     }
@@ -253,6 +254,7 @@ mod tests {
             name: name.to_string(),
             requirement: requirement.to_string(),
             kind,
+            declaration_status: "declaration_only",
         }
     }
 }

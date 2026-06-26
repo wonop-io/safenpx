@@ -38,6 +38,7 @@ rust_library(
         "src/m2_fixtures.rs",
         "src/m2_report.rs",
         "src/package_metadata.rs",
+        "src/package_evidence.rs",
         "src/parser.rs",
         "src/process_boundary.rs",
         "src/race_matrix.rs",

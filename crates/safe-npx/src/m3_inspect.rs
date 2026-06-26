@@ -12,6 +12,10 @@ use std::time::{SystemTime, UNIX_EPOCH};
 pub struct StaticExtractionEvidence {
     /// Parsed package metadata tied to the verified artifact.
     pub metadata: ExtractedPackageMetadata,
+    /// Size of the verified tarball bytes.
+    pub artifact_size_bytes: usize,
+    /// Count of regular files inspected from the verified artifact.
+    pub file_count: usize,
     /// Human-readable extraction status.
     pub status: &'static str,
 }
@@ -32,6 +36,8 @@ pub fn extract_for_inspect(
 
     extracted.map(|extracted| StaticExtractionEvidence {
         metadata: extracted.metadata,
+        artifact_size_bytes: extracted.artifact_size_bytes,
+        file_count: extracted.file_count,
         status: "extracted",
     })
 }
@@ -43,9 +49,11 @@ pub fn render_static_extraction(static_extraction: Option<&StaticExtractionEvide
     };
 
     format!(
-        "Static extraction: {}\nPackage metadata: {}\nBins: {}\nLifecycle scripts: {}\nDependency declarations: {}\n",
+        "Static extraction: {}\nPackage metadata: {}\nPackage size: {} bytes\nPackage files: {}\nBins: {}\nLifecycle scripts: {}\nDependency declarations: {}\n",
         static_extraction.status,
         static_extraction.metadata.package_json_path.display(),
+        static_extraction.artifact_size_bytes,
+        static_extraction.file_count,
         static_extraction.metadata.bins.len(),
         static_extraction.metadata.lifecycle_scripts.len(),
         static_extraction.metadata.dependency_declarations.len()

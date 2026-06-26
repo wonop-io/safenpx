@@ -5,8 +5,9 @@
 //! managers.
 
 use crate::{
+    extract_package_optional_evidence,
     package_metadata::{stringify_peer_dependency_metadata, PackageBundledDependencies},
-    ArtifactIdentity, DependencyDeclarationKind,
+    ArtifactIdentity, DependencyDeclarationKind, PackageOptionalEvidence,
 };
 use flate2::read::GzDecoder;
 use serde::{Deserialize, Serialize};
@@ -25,6 +26,10 @@ pub struct ExtractedRootArtifact {
     pub extraction_root: PathBuf,
     /// Parsed package metadata tied to `artifact`.
     pub metadata: ExtractedPackageMetadata,
+    /// Size of the verified tarball bytes.
+    pub artifact_size_bytes: usize,
+    /// Count of regular files inspected from the verified artifact.
+    pub file_count: usize,
 }
 
 /// Package metadata needed by M2 static closure checks.
@@ -40,6 +45,8 @@ pub struct ExtractedPackageMetadata {
     pub lifecycle_scripts: BTreeMap<String, String>,
     /// Dependency declarations from `package.json`.
     pub dependency_declarations: Vec<ExtractedDependencyDeclaration>,
+    /// Optional package evidence that may be absent or malformed.
+    pub optional_evidence: PackageOptionalEvidence,
     /// Path to package metadata relative to the extraction root.
     pub package_json_path: PathBuf,
 }
@@ -53,6 +60,8 @@ pub struct ExtractedDependencyDeclaration {
     pub requirement: String,
     /// Dependency declaration kind.
     pub kind: DependencyDeclarationKind,
+    /// Explicit marker that this is declaration evidence, not verified closure.
+    pub declaration_status: &'static str,
 }
 
 /// Static extraction failure.
@@ -119,6 +128,7 @@ pub fn extract_verified_root_artifact(
         )
     })?;
 
+    let mut file_count = 0;
     for entry in entries {
         let mut entry = entry.map_err(|error| {
             ExtractionError::new(
@@ -148,6 +158,7 @@ pub fn extract_verified_root_artifact(
                 })?;
             }
             EntryType::Regular => {
+                file_count += 1;
                 write_regular_entry(&mut entry, extraction_root, &relative_path)?;
             }
             EntryType::Symlink | EntryType::Link => {
@@ -177,6 +188,8 @@ pub fn extract_verified_root_artifact(
         artifact,
         extraction_root: extraction_root.to_path_buf(),
         metadata,
+        artifact_size_bytes: tarball_bytes.len(),
+        file_count,
     })
 }
 
@@ -260,13 +273,21 @@ fn read_extracted_package_metadata(
                     format!("could not read package.json: {error}"),
                 )
             })?;
-            let package_json: PackageJson = serde_json::from_slice(&bytes).map_err(|error| {
-                ExtractionError::new(
-                    ExtractionErrorReason::MalformedPackageJson,
-                    format!("could not parse package.json: {error}"),
-                )
-            })?;
-            return Ok(package_json.into_metadata(relative.to_path_buf()));
+            let package_value: serde_json::Value =
+                serde_json::from_slice(&bytes).map_err(|error| {
+                    ExtractionError::new(
+                        ExtractionErrorReason::MalformedPackageJson,
+                        format!("could not parse package.json: {error}"),
+                    )
+                })?;
+            let package_json: PackageJson =
+                serde_json::from_value(package_value.clone()).map_err(|error| {
+                    ExtractionError::new(
+                        ExtractionErrorReason::MalformedPackageJson,
+                        format!("could not parse package.json: {error}"),
+                    )
+                })?;
+            return Ok(package_json.into_metadata(relative.to_path_buf(), &package_value));
         }
     }
 
@@ -358,7 +379,11 @@ struct PackageJson {
 
 impl PackageJson {
     /// Convert deserialized package JSON into extracted metadata.
-    fn into_metadata(self, package_json_path: PathBuf) -> ExtractedPackageMetadata {
+    fn into_metadata(
+        self,
+        package_json_path: PathBuf,
+        package_value: &serde_json::Value,
+    ) -> ExtractedPackageMetadata {
         let bins = self.bin.into_bins(self.name.as_deref());
         let lifecycle_scripts = self
             .scripts
@@ -404,6 +429,7 @@ impl PackageJson {
             bins,
             lifecycle_scripts,
             dependency_declarations,
+            optional_evidence: extract_package_optional_evidence(package_value),
             package_json_path,
         }
     }
@@ -467,6 +493,7 @@ fn push_dependency_declarations(
             name,
             requirement,
             kind: kind.clone(),
+            declaration_status: "declaration_only",
         }
     }));
 }
