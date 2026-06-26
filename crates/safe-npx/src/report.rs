@@ -250,14 +250,24 @@ pub fn render_report(cli: &Cli, report: &Report) -> anyhow::Result<String> {
     }
 
     Ok(format!(
-        "Package: {}\nStatus: {}\nRecommendation: {:?}\n{}{}{}\nThis Rust CLI does not execute package code in M1.\nNext step: expand evidence beyond the root artifact.\n",
+        "Package: {}\nStatus: {}\nRecommendation: {:?}\n\n[Command]\n{}[Facts]\n{}[Decision]\n{}[Safety boundary]\n{}",
         crate::redact_report_value(&report.package_spec),
         report.status,
         report.inspect.decision.recommendation,
         render_model_intent(&report.inspect),
         render_model_facts(&report.inspect),
-        render_model_summary(&report.inspect)
+        render_model_summary(&report.inspect),
+        safety_boundary(report)
     ))
+}
+
+/// Render the human safety boundary for the report capability level.
+fn safety_boundary(report: &Report) -> &'static str {
+    if report.status == "m3_inspect" {
+        return "safe-npx catches unsupported command shapes, integrity mismatches, lifecycle/dependency surfaces, and authority-context risk signals.\nRisk signals are not proof that a package is safe.\nThis Rust CLI does not execute package code in M1.\nM3 inspect does not verify dependency closure or execute package code.\n";
+    }
+
+    "safe-npx catches unsupported command shapes and root artifact integrity mismatches in M1.\nRisk signals are not proof that a package is safe.\nThis Rust CLI does not execute package code in M1.\nNext step: use inspect mode for static lifecycle/dependency evidence.\n"
 }
 
 /// Build a deterministic M2 refusal report for an unproven closure.

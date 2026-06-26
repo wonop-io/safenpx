@@ -1,5 +1,6 @@
 //! Shared inspect-model construction and human rendering helpers.
 
+use crate::report_optional_evidence::render_registry_optional_evidence;
 use crate::{
     build_authority_context, package_scope_for_parse, redact_report_value, redact_report_values,
     render_static_extraction, CommandIntent, Decision, InspectAuthorityContext, InspectDecision,
@@ -139,7 +140,7 @@ pub(crate) fn render_model_facts(model: &InspectModel) -> String {
         .expect("verified facts should include registry evidence");
 
     format!(
-        "M1 evidence: verified\nResolved: {}@{}\nRegistry: {}\nRegistry evidence: {}\nTarball: {}\nIntegrity: {}\nIntegrity metadata: {}\nDigest: {}:{}\n{}",
+        "M1 evidence: verified\nResolved: {}@{}\nRegistry: {}\nRegistry evidence: {}\nTarball: {}\nIntegrity: {}\nIntegrity metadata: {}\nDigest: {}:{}\n{}{}",
         resolved_package.name,
         resolved_package.version,
         redact_report_value(&resolved_package.registry.url),
@@ -149,6 +150,7 @@ pub(crate) fn render_model_facts(model: &InspectModel) -> String {
         resolved_package.integrity,
         artifact_identity.digest_algorithm,
         artifact_identity.digest,
+        render_registry_optional_evidence(registry_evidence),
         render_static_extraction(model.facts.root_package.as_ref())
     )
 }
@@ -156,7 +158,8 @@ pub(crate) fn render_model_facts(model: &InspectModel) -> String {
 /// Render shared decision, authority, execution, and heuristic model fields.
 pub(crate) fn render_model_summary(model: &InspectModel) -> String {
     format!(
-        "Decision reasons: {}\nRequired next action: {}\nAuthority: command={}, source_context={}, runner={}, actor={}, cwd={} [{}], registry={}, package_scope={}\nAuthority boundary: {}\nExecution: {}; package code executed: {}\n{}",
+        "Recommendation: {:?}\nDecision reasons: {}\nRequired next action: {}\n\n[Authority]\nAuthority: command={}\nsource_context={}\nrunner={}\nactor={}\ncwd={} [{}]\nregistry={}\npackage_scope={}\nAuthority boundary: {}\n\n[Execution]\nExecution: {}; package code executed: {}\n\n[Heuristics]\n{}",
+        model.decision.recommendation,
         model.inspect_decision_reasons(),
         next_action_name(&model.decision.required_next_action),
         model.authority_context.redacted.command_intent.display,
@@ -227,10 +230,10 @@ fn inspect_heuristics(facts: &InspectFacts) -> Vec<InspectHeuristic> {
 /// Render report-only heuristics from the shared model.
 fn render_model_heuristics(model: &InspectModel) -> String {
     if model.heuristics.is_empty() {
-        return "Heuristics: none\n".to_string();
+        return "none\n".to_string();
     }
 
-    let mut output = String::from("Heuristics:\n");
+    let mut output = String::new();
     for heuristic in &model.heuristics {
         let mode = if heuristic.report_only {
             "report_only"

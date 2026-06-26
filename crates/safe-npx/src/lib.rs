@@ -38,6 +38,12 @@ mod fixtures;
 /// Inspect boundary and no-network harness.
 mod inspect;
 #[cfg(test)]
+/// Deterministic inspect fixtures shared by golden tests.
+mod inspect_golden_fixtures;
+#[cfg(test)]
+/// Expanded deterministic golden tests for M3 inspect human reports.
+mod inspect_human_golden_tests;
+#[cfg(test)]
 /// Expanded deterministic golden tests for M3 inspect JSON.
 mod inspect_json_golden_tests;
 /// M3 inspect JSON schema v0.
@@ -87,6 +93,8 @@ mod registry_precedence;
 mod report;
 /// Shared inspect-model report helpers.
 mod report_inspect;
+/// Optional evidence rendering for human reports.
+mod report_optional_evidence;
 #[cfg(test)]
 /// Tests for report redaction boundaries.
 mod report_redaction_tests;

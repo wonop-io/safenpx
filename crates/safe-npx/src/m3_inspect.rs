@@ -1,5 +1,6 @@
 //! M3 inspect-mode static extraction pipeline.
 
+use crate::report_optional_evidence::render_package_optional_evidence;
 use crate::{
     extract_verified_root_artifact, ArtifactIdentity, ExtractedPackageMetadata, ExtractionError,
 };
@@ -50,14 +51,15 @@ pub fn render_static_extraction(static_extraction: Option<&StaticExtractionEvide
     };
 
     format!(
-        "Static extraction: {}\nPackage metadata: {}\nPackage size: {} bytes\nPackage files: {}\nBins: {}\nLifecycle scripts: {}\nDependency declarations: {}\n",
+        "Static extraction: {}\nPackage metadata: {}\nPackage size: {} bytes\nPackage files: {}\nBins: {}\nLifecycle scripts: {}\nDependency declarations: {}\n{}",
         static_extraction.status,
         static_extraction.metadata.package_json_path.display(),
         static_extraction.artifact_size_bytes,
         static_extraction.file_count,
         render_bins(&static_extraction.metadata.bins),
         render_pairs(&static_extraction.metadata.lifecycle_scripts),
-        render_dependency_declarations(&static_extraction.metadata.dependency_declarations)
+        render_dependency_declarations(&static_extraction.metadata.dependency_declarations),
+        render_package_optional_evidence(&static_extraction.metadata.optional_evidence)
     )
 }
 

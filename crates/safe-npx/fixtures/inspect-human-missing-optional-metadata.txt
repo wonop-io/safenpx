@@ -1,0 +1,49 @@
+Package: create-example@1.2.3
+Status: m3_inspect
+Recommendation: Ask
+
+[Command]
+Parsed: create-example@1.2.3
+Forwarded args: []
+[Facts]
+M1 evidence: verified
+Resolved: create-example@1.2.3
+Registry: https://registry.npmjs.org/
+Registry evidence: registry metadata is not proof of tarball package contents
+Tarball: https://registry.npmjs.org/create-example/-/create-example-1.2.3.tgz
+Integrity: verified
+Integrity metadata: sha512-example
+Digest: sha512:digest-example
+Static extraction: extracted
+Package metadata: package/package.json
+Package size: 2048 bytes
+Package files: 3
+Bins: create-example -> bin/create-example.js
+Lifecycle scripts: none
+Dependency declarations: none
+[Decision]
+Recommendation: Ask
+Decision reasons: fixture
+Required next action: ask_user
+
+[Authority]
+Authority: command=create-example@1.2.3
+source_context=unknown
+runner=unknown
+actor=unknown
+cwd=<absolute-path> [trusted_project]
+registry=unknown
+package_scope=unscoped
+Authority boundary: authority context describes ambient process authority; it is not sandboxing
+
+[Execution]
+Execution: stopped_before_execution; package code executed: false
+
+[Heuristics]
+none
+[Safety boundary]
+safe-npx catches unsupported command shapes, integrity mismatches, lifecycle/dependency surfaces, and authority-context risk signals.
+Risk signals are not proof that a package is safe.
+This Rust CLI does not execute package code in M1.
+M3 inspect does not verify dependency closure or execute package code.
+

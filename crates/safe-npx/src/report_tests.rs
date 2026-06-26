@@ -216,6 +216,8 @@ fn renders_human_scaffold_output() {
     assert!(output.contains("Integrity: verified"));
     assert!(output.contains("Integrity metadata: sha512-"));
     assert!(output.contains("This Rust CLI does not execute package code in M1"));
+    assert!(output.contains("root artifact integrity mismatches in M1"));
+    assert!(!output.contains("lifecycle/dependency surfaces"));
 }
 
 #[test]

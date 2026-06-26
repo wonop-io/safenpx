@@ -93,7 +93,7 @@
       "reasons": [
         "fixture"
       ],
-      "required_next_action": "ask_user"
+      "required_next_action": "stop"
     },
     "authority_context": {
       "redacted": {
@@ -118,7 +118,7 @@
       }
     },
     "execution_state": {
-      "state": "stopped_before_execution",
+      "state": "failed_before_execution",
       "package_code_executed": false
     }
   },
