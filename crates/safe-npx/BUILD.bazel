@@ -32,6 +32,7 @@ rust_library(
         "src/integrity.rs",
         "src/inspect.rs",
         "src/m3_inspect.rs",
+        "src/m3_inspect_canary_tests.rs",
         "src/m3_inspect_tests.rs",
         "src/lib.rs",
         "src/m2_fixtures.rs",

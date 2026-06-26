@@ -43,6 +43,9 @@ mod m2_report;
 /// M3 inspect-mode static extraction pipeline.
 mod m3_inspect;
 #[cfg(test)]
+/// Canary carryover tests for the M3 inspect-mode pipeline.
+mod m3_inspect_canary_tests;
+#[cfg(test)]
 /// Tests for the M3 inspect-mode pipeline.
 mod m3_inspect_tests;
 /// Package metadata parsing helpers for static extraction.
