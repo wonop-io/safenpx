@@ -102,6 +102,48 @@ fn lifecycle_threshold_produces_ask_warning() {
 }
 
 #[test]
+/// Clean verified allow evidence remains allow with no threshold findings.
+fn clean_verified_allow_has_no_policy_findings() {
+    let policy = evaluate_m1_policy_at(
+        &Decision::Allow,
+        &verified_m1_with_static(static_extraction(1, 1, &[])),
+        parse_rfc3339_utc_seconds("2026-07-01T12:00:00Z").unwrap(),
+    );
+
+    assert_eq!(policy.decision, PolicyDecision::Allow);
+    assert_eq!(policy.required_next_action, PolicyNextAction::None);
+    assert_eq!(policy.reasons, vec![PolicyReason::CallerRequestedAllow]);
+    assert_eq!(policy.rule_ids, vec![PolicyRuleId::CallerRecommendation]);
+    assert!(policy.findings.is_empty());
+}
+
+#[test]
+/// Threshold boundary fixtures stay negative unless they exceed M4 limits.
+fn threshold_boundaries_do_not_warn() {
+    let now = parse_rfc3339_utc_seconds("2026-07-01T12:00:00Z").unwrap();
+    let older_publish = evaluate_m1_policy_at(
+        &Decision::Allow,
+        &verified_m1_with_publish_time("2026-06-30T12:00:00.000Z"),
+        now,
+    );
+    let boundary_static = evaluate_m1_policy_at(
+        &Decision::Allow,
+        &verified_m1_with_static(static_extraction(
+            M4_LARGE_TARBALL_WARNING_BYTES,
+            M4_LARGE_FILE_COUNT_WARNING,
+            &[],
+        )),
+        now,
+    );
+
+    for policy in [older_publish, boundary_static] {
+        assert_eq!(policy.decision, PolicyDecision::Allow);
+        assert_eq!(policy.required_next_action, PolicyNextAction::None);
+        assert!(policy.findings.is_empty());
+    }
+}
+
+#[test]
 /// Threshold warnings cannot weaken an explicit caller denial.
 fn threshold_warnings_do_not_weaken_caller_deny() {
     let policy = evaluate_m1_policy_at(
