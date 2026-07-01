@@ -377,7 +377,7 @@ fn non_interactive_allow_policy_does_not_render_stop_banner() {
 
     assert_eq!(exit_code_for_report(&report), 0);
     assert!(output.contains("Decision reasons: caller_requested_allow"));
-    assert!(output.contains("Required next action: ask_user"));
+    assert!(output.contains("Required next action: none"));
     assert!(!output.contains("Interaction required:"));
 }
 

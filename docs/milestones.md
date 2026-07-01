@@ -352,15 +352,15 @@ Acceptance criteria:
 - Fixture output explains whether the user can retry with a narrower command,
   inspect-only mode, or an explicit override.
 
-M4 exit code contract:
+M4 exit code contract: `0` means success; `10` means non-interactive `ask`;
+`11` means `deny`; `12` means `unsupported`; `13` means `inspection_error`;
+`14` means `execution_refused`; `15` means future delegated execution failed.
 
-- `0`: successful inspection or execution.
-- `10`: `ask` required in a non-interactive context.
-- `11`: `deny`.
-- `12`: `unsupported`.
-- `13`: `inspection_error`.
-- `14`: `execution_refused`.
-- `15`: delegated execution failed after a future execution handoff.
+Required next-action contract: `none` means no follow-up is required;
+`ask_user` means ask a human before execution; `retry_narrower_command` means
+retry with a narrower exact package command; `inspect_only` means use inspect
+evidence because execution is unavailable; `explicit_override` is reserved for a
+future override path; `unsupported` means the path is outside current capability.
 
 ## M5: Execute Mode Alpha
 

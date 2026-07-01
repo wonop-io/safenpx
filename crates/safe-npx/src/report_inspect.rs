@@ -157,9 +157,9 @@ pub(crate) fn render_model_facts(model: &InspectModel) -> String {
     )
 }
 
-/// Render shared decision, authority, execution, and heuristic model fields.
 pub(crate) fn render_model_summary(
     model: &InspectModel,
+    policy: &PolicyEvaluation,
     non_interactive_ask_required: bool,
 ) -> String {
     let interaction_summary = if non_interactive_ask_required {
@@ -173,7 +173,7 @@ pub(crate) fn render_model_summary(
 \n[Authority]\nAuthority: command={}\nsource_context={}\nrunner={}\nactor={}\ncwd={} [{}]\nregistry={}\npackage_scope={}\nAuthority boundary: {}\n\n[Execution]\nExecution: {}; package code executed: {}\n\n[Heuristics]\n{}",
         model.decision.recommendation,
         model.inspect_decision_reasons(),
-        next_action_name(&model.decision.required_next_action),
+        policy_next_action_name(&policy.required_next_action),
         interaction_summary,
         model.authority_context.redacted.command_intent.display,
         source_context_name(&model.authority_context.redacted.source_context),
@@ -344,27 +344,15 @@ fn inspect_recommendation_for_policy(policy: &PolicyEvaluation) -> Decision {
 
 fn inspect_next_action_for_policy(
     policy: &PolicyEvaluation,
-    facts: &InspectFacts,
+    _facts: &InspectFacts,
 ) -> InspectNextAction {
-    if facts.refusal.is_none() && matches!(policy.required_next_action, PolicyNextAction::None) {
-        return InspectNextAction::AskUser;
-    }
-    if facts.refusal.is_some()
-        && matches!(
-            policy.required_next_action,
-            PolicyNextAction::RetryNarrowerCommand
-        )
-    {
-        return InspectNextAction::Stop;
-    }
-
     match policy.required_next_action {
+        PolicyNextAction::None => InspectNextAction::None,
         PolicyNextAction::AskUser => InspectNextAction::AskUser,
         PolicyNextAction::RetryNarrowerCommand => InspectNextAction::RetryNarrowerCommand,
-        PolicyNextAction::InspectOnly
-        | PolicyNextAction::ExplicitOverride
-        | PolicyNextAction::Unsupported
-        | PolicyNextAction::None => InspectNextAction::Stop,
+        PolicyNextAction::InspectOnly => InspectNextAction::InspectOnly,
+        PolicyNextAction::ExplicitOverride => InspectNextAction::ExplicitOverride,
+        PolicyNextAction::Unsupported => InspectNextAction::Unsupported,
     }
 }
 
@@ -388,7 +376,6 @@ fn inspect_authority_context(
     }
 }
 
-/// Return the stable serialized name for a refusal state.
 fn refusal_state_name(state: &InspectRefusalState) -> &'static str {
     match state {
         InspectRefusalState::NoDownload => "no_download",
@@ -396,12 +383,14 @@ fn refusal_state_name(state: &InspectRefusalState) -> &'static str {
     }
 }
 
-/// Return the stable serialized name for a next action.
-fn next_action_name(action: &InspectNextAction) -> &'static str {
+fn policy_next_action_name(action: &PolicyNextAction) -> &'static str {
     match action {
-        InspectNextAction::AskUser => "ask_user",
-        InspectNextAction::Stop => "stop",
-        InspectNextAction::RetryNarrowerCommand => "retry_narrower_command",
+        PolicyNextAction::None => "none (no follow-up action is required)",
+        PolicyNextAction::AskUser => "ask_user (ask a human before execution can proceed)",
+        PolicyNextAction::RetryNarrowerCommand => "retry_narrower_command (retry exact command)",
+        PolicyNextAction::InspectOnly => "inspect_only (use inspect evidence only)",
+        PolicyNextAction::ExplicitOverride => "explicit_override (reserved for future override)",
+        PolicyNextAction::Unsupported => "unsupported (stop; outside current capability)",
     }
 }
 
@@ -423,7 +412,6 @@ fn heuristic_kind_name(kind: &InspectHeuristicKind) -> &'static str {
     }
 }
 
-/// Return the stable serialized name for a caller-declared source context.
 fn source_context_name(source_context: &SourceContext) -> &'static str {
     match source_context {
         SourceContext::ManualTerminal => "manual_terminal",

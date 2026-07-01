@@ -364,10 +364,10 @@ pub fn evaluate_m2_policy(reasons: &[M2Reason]) -> PolicyEvaluation {
             PolicyNextAction::RetryNarrowerCommand
         } else if reasons.contains(&M2Reason::NonInteractiveStop) {
             PolicyNextAction::AskUser
-        } else if reasons.contains(&M2Reason::UnsupportedClosure) {
+        } else if matches!(decision, PolicyDecision::ExecutionRefused) {
             PolicyNextAction::InspectOnly
         } else {
-            PolicyNextAction::Unsupported
+            default_next_action_for_decision(&decision)
         };
 
     PolicyEvaluation::new(
@@ -376,6 +376,18 @@ pub fn evaluate_m2_policy(reasons: &[M2Reason]) -> PolicyEvaluation {
         required_next_action,
         reasons.iter().map(policy_rule_for_m2_reason).collect(),
     )
+}
+
+/// Return the default next action for a canonical M4 policy decision.
+pub fn default_next_action_for_decision(decision: &PolicyDecision) -> PolicyNextAction {
+    match decision {
+        PolicyDecision::Allow | PolicyDecision::Deny => PolicyNextAction::None,
+        PolicyDecision::Ask => PolicyNextAction::AskUser,
+        PolicyDecision::Unsupported => PolicyNextAction::RetryNarrowerCommand,
+        PolicyDecision::InspectionError | PolicyDecision::ExecutionRefused => {
+            PolicyNextAction::InspectOnly
+        }
+    }
 }
 
 fn m2_policy_decision(reasons: &[M2Reason]) -> PolicyDecision {

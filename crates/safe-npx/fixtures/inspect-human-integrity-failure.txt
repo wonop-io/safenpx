@@ -13,7 +13,7 @@ Detail: sha512 digest mismatch
 [Decision]
 Recommendation: Deny
 Decision reasons: fixture
-Required next action: stop
+Required next action: none (no follow-up action is required)
 
 [Authority]
 Authority: command=create-example@1.2.3

@@ -277,7 +277,7 @@ pub fn render_report(cli: &Cli, report: &Report) -> anyhow::Result<String> {
         report.inspect.decision.recommendation,
         render_model_intent(&report.inspect),
         render_model_facts(&report.inspect),
-        render_model_summary(&report.inspect, non_interactive_ask_required),
+        render_model_summary(&report.inspect, &policy, non_interactive_ask_required),
         safety_boundary(report)
     ))
 }
@@ -333,13 +333,26 @@ pub fn render_m2_execution_refusal_report(
     }
 
     Ok(format!(
-        "Execution refused\nPackage: {}\nDecision: {}\nReasons: {}\nRequired next action: {}\nExit code: {}\nNo package code was executed.\n",
+        "Execution refused\nPackage: {}\nDecision: {}\nReasons: {}\nRequired next action: {}\nNext action guidance: {}\nExit code: {}\nNo package code was executed.\n",
         crate::redact_report_value(&report.command.requested),
         closure_decision_name(&report.decision),
         format_m2_reasons(&report.reasons),
         required_next_action_name(&report.required_next_action),
+        required_next_action_guidance(&report.required_next_action),
         report.exit_code
     ))
+}
+
+/// Return human guidance for the next safe action.
+fn required_next_action_guidance(action: &RequiredNextAction) -> &'static str {
+    match action {
+        RequiredNextAction::None => "No follow-up action is required for this stopped report.",
+        RequiredNextAction::AskUser => "Ask a human before execution can proceed.",
+        RequiredNextAction::RetryNarrowerCommand => "Retry with a narrower exact package command.",
+        RequiredNextAction::InspectOnly => "Use inspect evidence; execution is unavailable here.",
+        RequiredNextAction::ExplicitOverride => "Reserved for a future explicit override path.",
+        RequiredNextAction::Unsupported => "Stop; this path is outside current capability.",
+    }
 }
 
 /// Run the CLI and return the output that should be written to stdout.

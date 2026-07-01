@@ -108,12 +108,20 @@ pub struct InspectDecision {
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum InspectNextAction {
+    /// No next action is required.
+    None,
     /// Ask a human before execution.
     AskUser,
     /// Stop; no execution path is available for this report.
     Stop,
     /// Retry with a narrower exact package command.
     RetryNarrowerCommand,
+    /// Use inspect-only output because execution is unavailable.
+    InspectOnly,
+    /// Use a future explicit override path.
+    ExplicitOverride,
+    /// The requested command shape is unsupported.
+    Unsupported,
 }
 
 /// Initial authority context for M3 inspect output.

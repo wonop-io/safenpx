@@ -138,7 +138,7 @@
       "reasons": [
         "fixture"
       ],
-      "required_next_action": "ask_user"
+      "required_next_action": "retry_narrower_command"
     },
     "authority_context": {
       "redacted": {

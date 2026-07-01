@@ -25,7 +25,7 @@
     "execution_refusal": {
       "decision": "execution_refused",
       "exit_code": 14,
-      "required_next_action": "unsupported"
+      "required_next_action": "inspect_only"
     },
     "inspection_failure": {
       "decision": "inspection_error",

@@ -111,7 +111,7 @@ fn unsupported_refusal_evidence_is_separate_from_facts() {
     );
     assert_eq!(
         report.inspect.decision.required_next_action,
-        crate::InspectNextAction::Stop
+        crate::InspectNextAction::RetryNarrowerCommand
     );
 }
 

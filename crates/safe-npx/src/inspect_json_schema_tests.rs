@@ -2,8 +2,8 @@
 
 use crate::{
     build_authority_context_with_paths, build_inspect_json_report,
-    build_m2_execution_refusal_json_report, build_m2_execution_refusal_report, render_report, run,
-    ArtifactIdentity, Cli, ClosureCommandIdentity, CommandIntent, Decision,
+    build_m2_execution_refusal_json_report, build_m2_execution_refusal_report, evaluate_m1_policy,
+    render_report, run, ArtifactIdentity, Cli, ClosureCommandIdentity, CommandIntent, Decision,
     InspectAuthorityContext, InspectDecision, InspectExecutionState, InspectExecutionStateKind,
     InspectFacts, InspectJsonDecision, InspectJsonNextAction, InspectModel, InspectNextAction,
     InspectRefusalFact, InspectRefusalState, M1Evidence, M1Reason, M2Reason, PackageSpec,
@@ -455,6 +455,14 @@ fn report_from_parts(
     facts: InspectFacts,
     m1: M1Evidence,
 ) -> Report {
+    let required_next_action = match evaluate_m1_policy(&recommendation, &m1).required_next_action {
+        crate::PolicyNextAction::None => InspectNextAction::None,
+        crate::PolicyNextAction::AskUser => InspectNextAction::AskUser,
+        crate::PolicyNextAction::RetryNarrowerCommand => InspectNextAction::RetryNarrowerCommand,
+        crate::PolicyNextAction::InspectOnly => InspectNextAction::InspectOnly,
+        crate::PolicyNextAction::ExplicitOverride => InspectNextAction::ExplicitOverride,
+        crate::PolicyNextAction::Unsupported => InspectNextAction::Unsupported,
+    };
     Report {
         package_spec: intent.requested.clone(),
         inspect: InspectModel {
@@ -462,7 +470,7 @@ fn report_from_parts(
             decision: InspectDecision {
                 recommendation: recommendation.clone(),
                 reasons: vec!["fixture".to_string()],
-                required_next_action: InspectNextAction::AskUser,
+                required_next_action,
             },
             authority_context: InspectAuthorityContext {
                 redacted: build_authority_context_with_paths(

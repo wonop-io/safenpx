@@ -141,7 +141,7 @@
       "reasons": [
         "fixture"
       ],
-      "required_next_action": "stop"
+      "required_next_action": "none"
     },
     "authority_context": {
       "redacted": {

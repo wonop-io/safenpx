@@ -34,7 +34,7 @@ Package provenance: source
 [Decision]
 Recommendation: Ask
 Decision reasons: fixture
-Required next action: ask_user
+Required next action: ask_user (ask a human before execution can proceed)
 
 [Authority]
 Authority: command=create-example@1.2.3

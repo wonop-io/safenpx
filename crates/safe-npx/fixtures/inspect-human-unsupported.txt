@@ -14,7 +14,7 @@ Downloaded: false
 [Decision]
 Recommendation: Deny
 Decision reasons: fixture
-Required next action: stop
+Required next action: retry_narrower_command (retry exact command)
 
 [Authority]
 Authority: command=create-example@latest

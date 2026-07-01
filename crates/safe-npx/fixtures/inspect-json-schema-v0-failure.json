@@ -141,7 +141,7 @@
       "reasons": [
         "fixture"
       ],
-      "required_next_action": "ask_user"
+      "required_next_action": "inspect_only"
     },
     "authority_context": {
       "redacted": {

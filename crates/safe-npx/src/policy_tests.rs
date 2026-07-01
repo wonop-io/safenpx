@@ -204,6 +204,79 @@ fn m2_unsupported_closure_is_execution_refused_policy() {
 }
 
 #[test]
+/// Every M4 decision has a documented default next action.
+fn policy_decisions_have_default_next_actions() {
+    let cases = [
+        (PolicyDecision::Allow, PolicyNextAction::None),
+        (PolicyDecision::Ask, PolicyNextAction::AskUser),
+        (PolicyDecision::Deny, PolicyNextAction::None),
+        (
+            PolicyDecision::Unsupported,
+            PolicyNextAction::RetryNarrowerCommand,
+        ),
+        (
+            PolicyDecision::InspectionError,
+            PolicyNextAction::InspectOnly,
+        ),
+        (
+            PolicyDecision::ExecutionRefused,
+            PolicyNextAction::InspectOnly,
+        ),
+    ];
+
+    for (decision, next_action) in cases {
+        assert_eq!(default_next_action_for_decision(&decision), next_action);
+    }
+}
+
+#[test]
+/// Representative reasons preserve stable next-action semantics.
+fn reason_specific_next_actions_are_stable() {
+    let unsupported = evaluate_m1_policy(
+        &Decision::Deny,
+        &M1Evidence::NoDownload {
+            reason: M1Reason::UnsupportedSpec,
+            downloaded: false,
+        },
+    );
+    assert_eq!(
+        unsupported.required_next_action,
+        PolicyNextAction::RetryNarrowerCommand
+    );
+
+    let integrity = evaluate_m1_policy(
+        &Decision::Ask,
+        &M1Evidence::Failed {
+            reason: M1Reason::IntegrityMismatch,
+            downloaded: true,
+            detail: "sha512 mismatch".to_string(),
+        },
+    );
+    assert_eq!(integrity.required_next_action, PolicyNextAction::None);
+
+    let inspection_error = evaluate_m1_policy(
+        &Decision::Allow,
+        &M1Evidence::Failed {
+            reason: M1Reason::RegistryError,
+            downloaded: false,
+            detail: "registry unavailable".to_string(),
+        },
+    );
+    assert_eq!(
+        inspection_error.required_next_action,
+        PolicyNextAction::InspectOnly
+    );
+
+    for reason in [
+        M2Reason::LifecycleScriptPresent,
+        M2Reason::UnsupportedClosure,
+    ] {
+        let policy = evaluate_m2_policy(&[reason]);
+        assert_eq!(policy.required_next_action, PolicyNextAction::InspectOnly);
+    }
+}
+
+#[test]
 /// Missing or ambiguous bin selection remains retryable unsupported input.
 fn m2_resolver_ambiguity_is_unsupported_policy() {
     for reason in [M2Reason::AmbiguousBin, M2Reason::MissingBin] {

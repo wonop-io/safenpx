@@ -1,8 +1,8 @@
 //! Deterministic inspect report fixtures shared by golden tests.
 
 use crate::{
-    build_authority_context_with_paths, ArtifactIdentity, CommandIntent, Decision,
-    DependencyDeclarationKind, ExtractedDependencyDeclaration, ExtractedPackageMetadata,
+    build_authority_context_with_paths, evaluate_m1_policy, ArtifactIdentity, CommandIntent,
+    Decision, DependencyDeclarationKind, ExtractedDependencyDeclaration, ExtractedPackageMetadata,
     InspectAuthorityContext, InspectDecision, InspectExecutionState, InspectExecutionStateKind,
     InspectFacts, InspectHeuristic, InspectHeuristicKind, InspectModel, InspectNextAction,
     InspectRefusalFact, InspectRefusalState, M1Evidence, M1Reason, PackageOptionalEvidence,
@@ -228,9 +228,13 @@ fn report_from_parts(
     authority_context: crate::AuthorityContext,
     m1: M1Evidence,
 ) -> Report {
-    let required_next_action = match recommendation {
-        Decision::Deny => InspectNextAction::Stop,
-        Decision::Allow | Decision::Ask => InspectNextAction::AskUser,
+    let required_next_action = match evaluate_m1_policy(&recommendation, &m1).required_next_action {
+        crate::PolicyNextAction::None => InspectNextAction::None,
+        crate::PolicyNextAction::AskUser => InspectNextAction::AskUser,
+        crate::PolicyNextAction::RetryNarrowerCommand => InspectNextAction::RetryNarrowerCommand,
+        crate::PolicyNextAction::InspectOnly => InspectNextAction::InspectOnly,
+        crate::PolicyNextAction::ExplicitOverride => InspectNextAction::ExplicitOverride,
+        crate::PolicyNextAction::Unsupported => InspectNextAction::Unsupported,
     };
     let execution_state = facts
         .refusal
