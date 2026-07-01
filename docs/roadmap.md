@@ -69,6 +69,8 @@ Goal: turn evidence into predictable local decisions.
 - Add interactive and non-interactive behavior.
 - Make unsupported specs and unverifiable execution fail closed.
 - Validate policy rules against fixtures.
+- Maintain the [`M4 Policy V0 Reference`](m4-policy-v0.md) as the public
+  contract for thresholds, required next actions, and exit codes.
 
 ### M5: Execute Alpha And Adoption
 
