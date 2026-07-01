@@ -13,3 +13,13 @@ rule with tests, docs, and schema expectations.
 - Verify heuristic-only unusual-shape evidence does not become `deny`.
 - Verify heuristic-only facts can remain `allow` when caller policy is allow.
 - Verify JSON exposes heuristic records without treating them as policy reasons.
+
+## Audit Notes
+
+- Current inspect heuristics are lifecycle scripts, dependency declarations, and
+  unusual package shape.
+- No similar-name heuristic exists in the current codebase; this ticket guards
+  the active heuristic surface and records that similar-name must get explicit
+  policy tests if introduced later.
+- Lifecycle scripts are the only current heuristic-like signal that contributes
+  to `ask`, and it does so through the documented M4 lifecycle policy rule.

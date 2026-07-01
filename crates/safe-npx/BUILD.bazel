@@ -30,6 +30,7 @@ rust_library(
         "src/extraction_tests.rs",
         "src/executable_identity.rs",
         "src/fixtures.rs",
+        "src/heuristic_guardrail_tests.rs",
         "src/inspect_golden_fixtures.rs",
         "src/inspect_human_golden_tests.rs",
         "src/inspect_latency.rs",

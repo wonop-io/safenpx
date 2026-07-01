@@ -29,7 +29,7 @@ Authority boundary: authority context describes ambient process authority; it is
 [Execution]
 Execution: refused_before_execution; package code executed: false
 
-[Heuristics]
+[Heuristics: provisional risk signals]
 none
 [Safety boundary]
 safe-npx catches unsupported command shapes, integrity mismatches, lifecycle/dependency surfaces, and authority-context risk signals.

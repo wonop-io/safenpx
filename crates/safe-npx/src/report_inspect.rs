@@ -170,7 +170,7 @@ pub(crate) fn render_model_summary(
 
     format!(
         "Recommendation: {:?}\nDecision reasons: {}\nRequired next action: {}\n{}\
-\n[Authority]\nAuthority: command={}\nsource_context={}\nrunner={}\nactor={}\ncwd={} [{}]\nregistry={}\npackage_scope={}\nAuthority boundary: {}\n\n[Execution]\nExecution: {}; package code executed: {}\n\n[Heuristics]\n{}",
+\n[Authority]\nAuthority: command={}\nsource_context={}\nrunner={}\nactor={}\ncwd={} [{}]\nregistry={}\npackage_scope={}\nAuthority boundary: {}\n\n[Execution]\nExecution: {}; package code executed: {}\n\n[Heuristics: provisional risk signals]\n{}",
         model.decision.recommendation,
         model.inspect_decision_reasons(),
         policy_next_action_name(&policy.required_next_action),

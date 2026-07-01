@@ -35,6 +35,9 @@ mod extraction;
 mod extraction_tests;
 /// M1 fixture manifest support.
 mod fixtures;
+#[cfg(test)]
+/// Guardrail tests for report-only M4 heuristics.
+mod heuristic_guardrail_tests;
 /// Inspect boundary and no-network harness.
 mod inspect;
 #[cfg(test)]
