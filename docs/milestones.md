@@ -307,6 +307,9 @@ Goal: turn evidence into predictable allow, ask, deny, and stop outcomes.
 Policy v0 is intentionally provisional. Thresholds should be constants that are
 easy to change after fixture and dogfood feedback.
 
+Status: planned. GitHub issue #6 is the parent index; implementation work is
+split into issues #66 through #76.
+
 Initial thresholds:
 
 - Recent publish warning: package version published within 24 hours, because
@@ -330,6 +333,11 @@ Deliverables:
 - Provisional policy fixtures covering every threshold and fail-closed path.
 - Agent-readable JSON decision semantics for both interactive and
   non-interactive mode.
+
+Ticket map: #66 policy model, #67 thresholds, #68 interactive ask, #69
+non-interactive stop, #70 exit codes, #71 next actions, #72 fixtures and
+goldens, #73 heuristic guardrails, #74 integration coverage, #75 docs, and #76
+closeout audit.
 
 Acceptance criteria:
 

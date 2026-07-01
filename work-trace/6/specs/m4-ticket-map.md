@@ -9,17 +9,17 @@ human output, JSON semantics, and process exit codes.
 
 ## Planned Tickets
 
-1. Policy evaluation model and rule registry.
-2. Provisional threshold constants.
-3. Interactive ask semantics.
-4. Non-interactive fail-closed semantics.
-5. Exit code contract.
-6. Required-next-action semantics.
-7. Policy fixture corpus and golden outputs.
-8. Report-only heuristic guardrails.
-9. Decision enum integration tests.
-10. Policy and exit semantics documentation.
-11. M4 closeout audit.
+1. #66: policy evaluation model and rule registry.
+2. #67: provisional threshold constants.
+3. #68: interactive ask semantics.
+4. #69: non-interactive fail-closed semantics.
+5. #70: exit code contract.
+6. #71: required-next-action semantics.
+7. #72: policy fixture corpus and golden outputs.
+8. #73: report-only heuristic guardrails.
+9. #74: decision enum integration tests.
+10. #75: policy and exit semantics documentation.
+11. #76: M4 closeout audit.
 
 ## Sequencing
 
