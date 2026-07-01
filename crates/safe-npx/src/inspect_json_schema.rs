@@ -2,10 +2,10 @@
 
 use crate::m2_report::{closure_decision_name, required_next_action_name};
 use crate::{
-    build_authority_context, build_inspect_decision_receipt, exit_code_for_report,
-    ArtifactIdentity, AuthorityContext, CommandIntent, Decision, ExecutionReport,
-    InspectDecisionReceipt, InspectFacts, InspectHeuristic, InspectModel, M1Evidence, M1Reason,
-    M2ExecutionRefusalReport, SourceContext,
+    build_authority_context, build_inspect_decision_receipt, evaluate_m1_policy,
+    exit_code_for_report, ArtifactIdentity, AuthorityContext, CommandIntent, Decision,
+    ExecutionReport, InspectDecisionReceipt, InspectFacts, InspectHeuristic, InspectModel,
+    M1Evidence, M2ExecutionRefusalReport, PolicyDecision, PolicyNextAction, SourceContext,
 };
 use serde::Serialize;
 
@@ -97,8 +97,9 @@ pub enum InspectJsonNextAction {
 
 /// Build the M3 inspect JSON schema from an internal report.
 pub fn build_inspect_json_report(report: &crate::Report) -> InspectJsonReport {
-    let decision = inspect_json_decision(report);
-    let required_next_action = inspect_json_next_action_for_decision(&decision);
+    let policy = evaluate_m1_policy(&report.recommendation, &report.m1);
+    let decision = inspect_json_decision_for_policy(&policy.decision);
+    let required_next_action = inspect_json_next_action_for_policy(&policy.required_next_action);
     let exit_code = exit_code_for_report(report);
 
     InspectJsonReport {
@@ -167,33 +168,26 @@ pub fn build_m2_execution_refusal_json_report(
     })
 }
 
-/// Map internal M1/recommendation state to the public M3 JSON decision.
-fn inspect_json_decision(report: &crate::Report) -> InspectJsonDecision {
-    match &report.m1 {
-        M1Evidence::Verified { .. } => match &report.recommendation {
-            Decision::Allow => InspectJsonDecision::Allow,
-            Decision::Ask => InspectJsonDecision::Ask,
-            Decision::Deny => InspectJsonDecision::Deny,
-        },
-        M1Evidence::NoDownload { .. } => InspectJsonDecision::Unsupported,
-        M1Evidence::Failed { reason, .. } => match reason {
-            M1Reason::IntegrityMismatch => InspectJsonDecision::Deny,
-            M1Reason::UnsupportedSpec | M1Reason::MalformedSpec => InspectJsonDecision::Unsupported,
-            M1Reason::RegistryError | M1Reason::MissingPackage | M1Reason::MissingVersion => {
-                InspectJsonDecision::InspectionError
-            }
-        },
+/// Map the canonical M4 policy decision to the public M3 JSON decision.
+fn inspect_json_decision_for_policy(decision: &PolicyDecision) -> InspectJsonDecision {
+    match decision {
+        PolicyDecision::Allow => InspectJsonDecision::Allow,
+        PolicyDecision::Ask => InspectJsonDecision::Ask,
+        PolicyDecision::Deny => InspectJsonDecision::Deny,
+        PolicyDecision::Unsupported => InspectJsonDecision::Unsupported,
+        PolicyDecision::InspectionError => InspectJsonDecision::InspectionError,
+        PolicyDecision::ExecutionRefused => InspectJsonDecision::ExecutionRefused,
     }
 }
 
-/// Map the public M3 JSON decision to an agent-readable next action.
-fn inspect_json_next_action_for_decision(decision: &InspectJsonDecision) -> InspectJsonNextAction {
-    match decision {
-        InspectJsonDecision::Allow => InspectJsonNextAction::None,
-        InspectJsonDecision::Ask => InspectJsonNextAction::AskUser,
-        InspectJsonDecision::Deny => InspectJsonNextAction::None,
-        InspectJsonDecision::Unsupported => InspectJsonNextAction::RetryNarrowerCommand,
-        InspectJsonDecision::InspectionError => InspectJsonNextAction::InspectOnly,
-        InspectJsonDecision::ExecutionRefused => InspectJsonNextAction::Unsupported,
+/// Map the canonical M4 next action to the public M3 JSON next action.
+fn inspect_json_next_action_for_policy(action: &PolicyNextAction) -> InspectJsonNextAction {
+    match action {
+        PolicyNextAction::None => InspectJsonNextAction::None,
+        PolicyNextAction::AskUser => InspectJsonNextAction::AskUser,
+        PolicyNextAction::RetryNarrowerCommand => InspectJsonNextAction::RetryNarrowerCommand,
+        PolicyNextAction::InspectOnly => InspectJsonNextAction::InspectOnly,
+        PolicyNextAction::ExplicitOverride => InspectJsonNextAction::ExplicitOverride,
+        PolicyNextAction::Unsupported => InspectJsonNextAction::Unsupported,
     }
 }

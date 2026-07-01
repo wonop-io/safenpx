@@ -86,6 +86,8 @@ mod package_evidence;
 mod package_metadata;
 /// Package spec parser.
 mod parser;
+/// M4 provisional policy evaluation model.
+mod policy;
 #[cfg(test)]
 /// Reviewed process execution boundary.
 mod process_boundary;
@@ -135,6 +137,7 @@ pub use m2_fixtures::*;
 pub use m3_inspect::*;
 pub use package_evidence::*;
 pub use parser::*;
+pub use policy::*;
 pub use race_matrix::*;
 pub use redaction::*;
 pub use registry::*;

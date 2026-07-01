@@ -52,6 +52,7 @@ rust_library(
         "src/package_metadata.rs",
         "src/package_evidence.rs",
         "src/parser.rs",
+        "src/policy.rs",
         "src/process_boundary.rs",
         "src/race_matrix.rs",
         "src/registry.rs",

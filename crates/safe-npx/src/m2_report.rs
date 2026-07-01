@@ -1,53 +1,32 @@
 //! M2 execution-refusal report helpers.
 
 use crate::{
-    ClosureDecision, M2Reason, RequiredNextAction, M2_EXECUTION_REFUSED_EXIT_CODE,
-    M2_UNSUPPORTED_EXIT_CODE,
+    evaluate_m2_policy, ClosureDecision, M2Reason, PolicyDecision, PolicyNextAction,
+    RequiredNextAction, M2_EXECUTION_REFUSED_EXIT_CODE, M2_UNSUPPORTED_EXIT_CODE,
 };
 
 /// Return the next action implied by M2 refusal reasons.
 pub(crate) fn required_next_action_for_m2_reasons(reasons: &[M2Reason]) -> RequiredNextAction {
-    if reasons.contains(&M2Reason::AmbiguousBin) || reasons.contains(&M2Reason::MissingBin) {
-        return RequiredNextAction::RetryNarrowerCommand;
+    match evaluate_m2_policy(reasons).required_next_action {
+        PolicyNextAction::None => RequiredNextAction::None,
+        PolicyNextAction::AskUser => RequiredNextAction::AskUser,
+        PolicyNextAction::RetryNarrowerCommand => RequiredNextAction::RetryNarrowerCommand,
+        PolicyNextAction::InspectOnly => RequiredNextAction::InspectOnly,
+        PolicyNextAction::ExplicitOverride => RequiredNextAction::ExplicitOverride,
+        PolicyNextAction::Unsupported => RequiredNextAction::Unsupported,
     }
-    if reasons.contains(&M2Reason::NonInteractiveStop) {
-        return RequiredNextAction::AskUser;
-    }
-    if reasons.contains(&M2Reason::UnsupportedClosure) {
-        return RequiredNextAction::InspectOnly;
-    }
-
-    RequiredNextAction::Unsupported
 }
 
 /// Return the completed-proof decision semantics for a set of M2 reasons.
 pub(crate) fn closure_decision_for_m2_reasons(reasons: &[M2Reason]) -> ClosureDecision {
-    if reasons
-        .iter()
-        .any(|reason| reason.refusal_decision() == ClosureDecision::ExecutionRefused)
-    {
-        return ClosureDecision::ExecutionRefused;
+    match evaluate_m2_policy(reasons).decision {
+        PolicyDecision::Allow => ClosureDecision::Allow,
+        PolicyDecision::Ask => ClosureDecision::Ask,
+        PolicyDecision::Deny => ClosureDecision::Deny,
+        PolicyDecision::Unsupported => ClosureDecision::Unsupported,
+        PolicyDecision::InspectionError => ClosureDecision::InspectionError,
+        PolicyDecision::ExecutionRefused => ClosureDecision::ExecutionRefused,
     }
-    if reasons
-        .iter()
-        .any(|reason| reason.refusal_decision() == ClosureDecision::Unsupported)
-    {
-        return ClosureDecision::Unsupported;
-    }
-    if reasons
-        .iter()
-        .any(|reason| reason.refusal_decision() == ClosureDecision::InspectionError)
-    {
-        return ClosureDecision::InspectionError;
-    }
-    if reasons
-        .iter()
-        .any(|reason| reason.refusal_decision() == ClosureDecision::Deny)
-    {
-        return ClosureDecision::Deny;
-    }
-
-    ClosureDecision::Ask
 }
 
 /// Return the M2 fixture exit code for a closure decision.

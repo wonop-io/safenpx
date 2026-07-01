@@ -21,5 +21,7 @@ M2 refusal helpers, and exit-code helpers.
   and rule identifiers.
 - Renderers consume the policy result rather than recomputing decisions.
 - Unsupported closure maps to `execution_refused`, not `deny`.
-- Integrity mismatch and resolver ambiguity map to `deny`.
+- Integrity mismatch maps to `deny`.
+- Ambiguous or missing bins map to `unsupported` with a retry-narrower-command
+  next action.
 - Existing M3 JSON and human output tests remain deterministic.

@@ -27,4 +27,6 @@ duplicating logic.
 - Registry/missing package failures map to `inspection_error`.
 - Unsupported closure maps to `execution_refused`.
 - Ambiguous or missing bin maps to `unsupported`.
-- Non-interactive stop maps to `ask`.
+- Non-interactive stop preserves the legacy M2 `execution_refused` decision in
+  #66 while carrying `ask_user` as the next action. Issues #69 and #70 own the
+  M4 ask-required non-interactive stop and exit-code migration.

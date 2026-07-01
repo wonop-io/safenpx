@@ -2,11 +2,12 @@
 
 use crate::report_optional_evidence::render_registry_optional_evidence;
 use crate::{
-    build_authority_context, package_scope_for_parse, redact_report_value, redact_report_values,
-    render_static_extraction, CommandIntent, Decision, InspectAuthorityContext, InspectDecision,
-    InspectExecutionState, InspectExecutionStateKind, InspectFacts, InspectHeuristic,
-    InspectHeuristicKind, InspectModel, InspectNextAction, InspectRefusalFact, InspectRefusalState,
-    M1Evidence, M1Reason, PackageSpecParse, SourceContext, UnsupportedSpecCategory,
+    build_authority_context, evaluate_m1_policy, package_scope_for_parse, redact_report_value,
+    redact_report_values, render_static_extraction, CommandIntent, Decision,
+    InspectAuthorityContext, InspectDecision, InspectExecutionState, InspectExecutionStateKind,
+    InspectFacts, InspectHeuristic, InspectHeuristicKind, InspectModel, InspectNextAction,
+    InspectRefusalFact, InspectRefusalState, M1Evidence, M1Reason, PackageSpecParse,
+    PolicyDecision, PolicyEvaluation, PolicyNextAction, SourceContext, UnsupportedSpecCategory,
 };
 
 /// Build the shared inspect model from current report facts.
@@ -74,7 +75,7 @@ pub(crate) fn build_inspect_model(
 
     InspectModel {
         heuristics: inspect_heuristics(&facts),
-        decision: inspect_decision(recommendation, &facts),
+        decision: inspect_decision(&evaluate_m1_policy(recommendation, m1), &facts),
         authority_context: inspect_authority_context(&facts, source_context),
         execution_state: InspectExecutionState {
             state: execution_state,
@@ -266,11 +267,8 @@ impl InspectDecisionReasonFormatting for InspectModel {
 }
 
 /// Build decision summary without letting M3 heuristics hard-deny execution.
-fn inspect_decision(recommendation: &Decision, facts: &InspectFacts) -> InspectDecision {
-    let required_next_action = match recommendation {
-        Decision::Deny => InspectNextAction::Stop,
-        Decision::Allow | Decision::Ask => InspectNextAction::AskUser,
-    };
+fn inspect_decision(policy: &PolicyEvaluation, facts: &InspectFacts) -> InspectDecision {
+    let required_next_action = inspect_next_action_for_policy(policy, facts);
     let reasons = facts
         .refusal
         .as_ref()
@@ -278,9 +276,46 @@ fn inspect_decision(recommendation: &Decision, facts: &InspectFacts) -> InspectD
         .unwrap_or_else(|| vec!["m3_heuristics_report_only".to_string()]);
 
     InspectDecision {
-        recommendation: recommendation.clone(),
+        recommendation: inspect_recommendation_for_policy(policy),
         reasons,
         required_next_action,
+    }
+}
+
+fn inspect_recommendation_for_policy(policy: &PolicyEvaluation) -> Decision {
+    match policy.decision {
+        PolicyDecision::Allow => Decision::Allow,
+        PolicyDecision::Ask => Decision::Ask,
+        PolicyDecision::Deny
+        | PolicyDecision::Unsupported
+        | PolicyDecision::InspectionError
+        | PolicyDecision::ExecutionRefused => Decision::Deny,
+    }
+}
+
+fn inspect_next_action_for_policy(
+    policy: &PolicyEvaluation,
+    facts: &InspectFacts,
+) -> InspectNextAction {
+    if facts.refusal.is_none() && matches!(policy.required_next_action, PolicyNextAction::None) {
+        return InspectNextAction::AskUser;
+    }
+    if facts.refusal.is_some()
+        && matches!(
+            policy.required_next_action,
+            PolicyNextAction::RetryNarrowerCommand
+        )
+    {
+        return InspectNextAction::Stop;
+    }
+
+    match policy.required_next_action {
+        PolicyNextAction::AskUser => InspectNextAction::AskUser,
+        PolicyNextAction::RetryNarrowerCommand => InspectNextAction::RetryNarrowerCommand,
+        PolicyNextAction::InspectOnly
+        | PolicyNextAction::ExplicitOverride
+        | PolicyNextAction::Unsupported
+        | PolicyNextAction::None => InspectNextAction::Stop,
     }
 }
 
