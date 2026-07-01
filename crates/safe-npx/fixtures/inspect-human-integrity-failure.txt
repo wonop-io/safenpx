@@ -12,8 +12,10 @@ Downloaded: true
 Detail: sha512 digest mismatch
 [Decision]
 Recommendation: Deny
+Policy decision: deny
 Decision reasons: fixture
 Required next action: none (no follow-up action is required)
+Exit code: 11
 
 [Authority]
 Authority: command=create-example@1.2.3

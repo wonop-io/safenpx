@@ -19,6 +19,9 @@ mod closure;
 mod closure_blockers;
 /// Shared M1 data contracts.
 mod contracts;
+#[cfg(test)]
+/// CLI-level integration coverage for M4 decisions.
+mod decision_integration_tests;
 /// M2 pinned delegation feasibility fixtures.
 mod delegation_feasibility;
 #[cfg(test)]

@@ -23,8 +23,10 @@ Lifecycle scripts: none
 Dependency declarations: none
 [Decision]
 Recommendation: Ask
+Policy decision: ask
 Decision reasons: fixture
 Required next action: ask_user (ask a human before execution can proceed)
+Exit code: 0
 
 [Authority]
 Authority: command=create-example@1.2.3

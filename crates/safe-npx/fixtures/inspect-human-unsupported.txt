@@ -13,8 +13,10 @@ Reason: unsupported_spec
 Downloaded: false
 [Decision]
 Recommendation: Deny
+Policy decision: unsupported
 Decision reasons: fixture
 Required next action: retry_narrower_command (retry exact command)
+Exit code: 12
 
 [Authority]
 Authority: command=create-example@latest

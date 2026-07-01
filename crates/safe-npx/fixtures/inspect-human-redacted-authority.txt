@@ -16,8 +16,10 @@ Integrity metadata: sha512-example
 Digest: sha512:digest-example
 [Decision]
 Recommendation: Ask
+Policy decision: ask
 Decision reasons: fixture
 Required next action: ask_user (ask a human before execution can proceed)
+Exit code: 10
 Interaction required: command did not run because this source context cannot answer a prompt.
 
 [Authority]

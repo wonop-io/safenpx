@@ -24,6 +24,7 @@ rust_library(
         "src/closure_blockers.rs",
         "src/contracts.rs",
         "src/delegation_feasibility.rs",
+        "src/decision_integration_tests.rs",
         "src/direct_execution.rs",
         "src/download.rs",
         "src/extraction.rs",

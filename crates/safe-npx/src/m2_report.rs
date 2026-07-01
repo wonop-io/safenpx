@@ -67,6 +67,18 @@ pub(crate) fn closure_decision_name(decision: &ClosureDecision) -> &'static str 
     }
 }
 
+/// Return the stable serialized name for a canonical policy decision.
+pub(crate) fn policy_decision_name(decision: &PolicyDecision) -> &'static str {
+    match decision {
+        PolicyDecision::Allow => "allow",
+        PolicyDecision::Ask => "ask",
+        PolicyDecision::Deny => "deny",
+        PolicyDecision::Unsupported => "unsupported",
+        PolicyDecision::InspectionError => "inspection_error",
+        PolicyDecision::ExecutionRefused => "execution_refused",
+    }
+}
+
 /// Return the stable serialized name for a next action.
 pub(crate) fn required_next_action_name(action: &RequiredNextAction) -> &'static str {
     match action {

@@ -1,5 +1,6 @@
 //! Shared inspect-model construction and human rendering helpers.
 
+use crate::m2_report::policy_decision_name;
 use crate::report_optional_evidence::render_registry_optional_evidence;
 use crate::{
     build_authority_context, evaluate_m1_policy, package_scope_for_parse, redact_report_value,
@@ -167,13 +168,20 @@ pub(crate) fn render_model_summary(
     } else {
         ""
     };
+    let exit_code = if non_interactive_ask_required {
+        crate::M4_ASK_REQUIRED_EXIT_CODE
+    } else {
+        crate::exit_code_for_policy_decision(&policy.decision)
+    };
 
     format!(
-        "Recommendation: {:?}\nDecision reasons: {}\nRequired next action: {}\n{}\
+        "Recommendation: {:?}\nPolicy decision: {}\nDecision reasons: {}\nRequired next action: {}\nExit code: {}\n{}\
 \n[Authority]\nAuthority: command={}\nsource_context={}\nrunner={}\nactor={}\ncwd={} [{}]\nregistry={}\npackage_scope={}\nAuthority boundary: {}\n\n[Execution]\nExecution: {}; package code executed: {}\n\n[Heuristics: provisional risk signals]\n{}",
         model.decision.recommendation,
+        policy_decision_name(&policy.decision),
         model.inspect_decision_reasons(),
         policy_next_action_name(&policy.required_next_action),
+        exit_code,
         interaction_summary,
         model.authority_context.redacted.command_intent.display,
         source_context_name(&model.authority_context.redacted.source_context),
