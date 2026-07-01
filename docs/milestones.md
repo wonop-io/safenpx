@@ -307,8 +307,8 @@ Goal: turn evidence into predictable allow, ask, deny, and stop outcomes.
 Policy v0 is intentionally provisional. Thresholds should be constants that are
 easy to change after fixture and dogfood feedback.
 
-Status: planned. GitHub issue #6 is the parent index; implementation work is
-split into issues #66 through #76.
+Status: implemented, with closeout tracked in #76. GitHub issue #6 is the
+parent index; implementation work is split into issues #66 through #76.
 
 Initial thresholds:
 
