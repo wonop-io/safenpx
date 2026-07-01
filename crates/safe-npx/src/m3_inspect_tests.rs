@@ -196,6 +196,191 @@ fn inspect_human_output_reports_root_package_facts() {
 }
 
 #[test]
+/// CI source context stops ask-required inspect output before execution.
+fn non_interactive_ci_stops_when_policy_requires_interaction() {
+    let tarball = package_tarball(
+        r#"{
+            "name":"create-example",
+            "version":"1.2.3",
+            "scripts":{"postinstall":"node postinstall.js"}
+        }"#,
+    );
+    let cli = Cli::parse_from([
+        "safe-npx",
+        "--source-context",
+        "ci",
+        "inspect",
+        "create-example@1.2.3",
+    ]);
+    let report = build_report_with_resolver(&cli, &verified_resolver(&tarball));
+    let output = render_report(&cli, &report).expect("human inspect should render");
+
+    assert_eq!(
+        exit_code_for_report(&report),
+        crate::M4_ASK_REQUIRED_EXIT_CODE
+    );
+    assert!(output.contains("Recommendation: Ask"));
+    assert!(output.contains("Decision reasons: caller_requested_ask, lifecycle_script_present"));
+    assert!(output.contains("Required next action: ask_user"));
+    assert!(output.contains(
+        "Interaction required: command did not run because this source context cannot answer a prompt."
+    ));
+    assert!(output.contains("Execution: stopped_before_execution; package code executed: false"));
+}
+
+#[test]
+/// JSON CI output carries ask semantics and the ask-required exit code.
+fn non_interactive_ci_json_reports_ask_required() {
+    let tarball = package_tarball(
+        r#"{
+            "name":"create-example",
+            "version":"1.2.3",
+            "scripts":{"postinstall":"node postinstall.js"}
+        }"#,
+    );
+    let cli = Cli::parse_from([
+        "safe-npx",
+        "--json",
+        "--source-context",
+        "ci",
+        "inspect",
+        "create-example@1.2.3",
+    ]);
+    let report = build_report_with_resolver(&cli, &verified_resolver(&tarball));
+    let output = render_report(&cli, &report).expect("json inspect should render");
+
+    assert_eq!(
+        exit_code_for_report(&report),
+        crate::M4_ASK_REQUIRED_EXIT_CODE
+    );
+    assert!(output.contains("\"decision\": \"ask\""));
+    assert!(output.contains("\"required_next_action\": \"ask_user\""));
+    assert!(output.contains("\"exit_code\": 10"));
+    assert!(output.contains("\"package_code_executed\": false"));
+}
+
+#[test]
+/// CI stops on lifecycle policy even when the caller requested allow.
+fn non_interactive_ci_stops_on_lifecycle_policy_question() {
+    let tarball = package_tarball(
+        r#"{
+            "name":"create-example",
+            "version":"1.2.3",
+            "scripts":{"postinstall":"node postinstall.js"}
+        }"#,
+    );
+    let cli = Cli::parse_from([
+        "safe-npx",
+        "--decision",
+        "allow",
+        "--source-context",
+        "ci",
+        "inspect",
+        "create-example@1.2.3",
+    ]);
+    let report = build_report_with_resolver(&cli, &verified_resolver(&tarball));
+    let output = render_report(&cli, &report).expect("human inspect should render");
+
+    assert_eq!(
+        exit_code_for_report(&report),
+        crate::M4_ASK_REQUIRED_EXIT_CODE
+    );
+    assert!(output.contains("lifecycle_script_present"));
+    assert!(output.contains("Required next action: ask_user"));
+    assert!(output.contains(
+        "Interaction required: command did not run because this source context cannot answer a prompt."
+    ));
+    assert!(output.contains("Execution: stopped_before_execution; package code executed: false"));
+}
+
+#[test]
+/// Agent skill source context follows the same ask-required stop as CI.
+fn non_interactive_agent_skill_stops_when_policy_requires_interaction() {
+    let tarball = package_tarball(
+        r#"{
+            "name":"create-example",
+            "version":"1.2.3",
+            "scripts":{"postinstall":"node postinstall.js"}
+        }"#,
+    );
+    let cli = Cli::parse_from([
+        "safe-npx",
+        "--source-context",
+        "agent_skill",
+        "inspect",
+        "create-example@1.2.3",
+    ]);
+    let report = build_report_with_resolver(&cli, &verified_resolver(&tarball));
+
+    assert_eq!(
+        exit_code_for_report(&report),
+        crate::M4_ASK_REQUIRED_EXIT_CODE
+    );
+}
+
+#[test]
+/// Manual and unknown contexts keep ask-required policy interactive-compatible.
+fn interactive_source_contexts_do_not_use_non_interactive_stop() {
+    let tarball = package_tarball(
+        r#"{
+            "name":"create-example",
+            "version":"1.2.3",
+            "scripts":{"postinstall":"node postinstall.js"}
+        }"#,
+    );
+
+    for source_context in ["manual_terminal", "unknown"] {
+        let cli = Cli::parse_from([
+            "safe-npx",
+            "--decision",
+            "allow",
+            "--source-context",
+            source_context,
+            "inspect",
+            "create-example@1.2.3",
+        ]);
+        let report = build_report_with_resolver(&cli, &verified_resolver(&tarball));
+        let output = render_report(&cli, &report).expect("human inspect should render");
+
+        assert_eq!(exit_code_for_report(&report), 0, "{source_context}");
+        assert!(output.contains("lifecycle_script_present"));
+        assert!(output.contains("Required next action: ask_user"));
+        assert!(
+            !output.contains("Interaction required:"),
+            "{source_context}"
+        );
+    }
+}
+
+#[test]
+/// Non-interactive contexts do not show an ask-required stop for allow policy.
+fn non_interactive_allow_policy_does_not_render_stop_banner() {
+    let tarball = package_tarball(
+        r#"{
+            "name":"create-example",
+            "version":"1.2.3",
+            "bin":{"create-example":"bin/create.js"}
+        }"#,
+    );
+    let cli = Cli::parse_from([
+        "safe-npx",
+        "--decision",
+        "allow",
+        "--source-context",
+        "ci",
+        "inspect",
+        "create-example@1.2.3",
+    ]);
+    let report = build_report_with_resolver(&cli, &verified_resolver(&tarball));
+    let output = render_report(&cli, &report).expect("human inspect should render");
+
+    assert_eq!(exit_code_for_report(&report), 0);
+    assert!(output.contains("Decision reasons: caller_requested_allow"));
+    assert!(output.contains("Required next action: ask_user"));
+    assert!(!output.contains("Interaction required:"));
+}
+
+#[test]
 /// Unsupported inspect specs stop before any network download.
 fn inspect_action_keeps_unsupported_specs_before_downloads() {
     let cli = Cli::parse_from(["safe-npx", "inspect", "create-example@latest"]);

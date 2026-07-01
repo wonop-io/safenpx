@@ -18,6 +18,7 @@ Digest: sha512:digest-example
 Recommendation: Ask
 Decision reasons: fixture
 Required next action: ask_user
+Interaction required: command did not run because this source context cannot answer a prompt.
 
 [Authority]
 Authority: command=create-example@1.2.3

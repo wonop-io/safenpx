@@ -158,12 +158,23 @@ pub(crate) fn render_model_facts(model: &InspectModel) -> String {
 }
 
 /// Render shared decision, authority, execution, and heuristic model fields.
-pub(crate) fn render_model_summary(model: &InspectModel) -> String {
+pub(crate) fn render_model_summary(
+    model: &InspectModel,
+    non_interactive_ask_required: bool,
+) -> String {
+    let interaction_summary = if non_interactive_ask_required {
+        "Interaction required: command did not run because this source context cannot answer a prompt.\n"
+    } else {
+        ""
+    };
+
     format!(
-        "Recommendation: {:?}\nDecision reasons: {}\nRequired next action: {}\n\n[Authority]\nAuthority: command={}\nsource_context={}\nrunner={}\nactor={}\ncwd={} [{}]\nregistry={}\npackage_scope={}\nAuthority boundary: {}\n\n[Execution]\nExecution: {}; package code executed: {}\n\n[Heuristics]\n{}",
+        "Recommendation: {:?}\nDecision reasons: {}\nRequired next action: {}\n{}\
+\n[Authority]\nAuthority: command={}\nsource_context={}\nrunner={}\nactor={}\ncwd={} [{}]\nregistry={}\npackage_scope={}\nAuthority boundary: {}\n\n[Execution]\nExecution: {}; package code executed: {}\n\n[Heuristics]\n{}",
         model.decision.recommendation,
         model.inspect_decision_reasons(),
         next_action_name(&model.decision.required_next_action),
+        interaction_summary,
         model.authority_context.redacted.command_intent.display,
         source_context_name(&model.authority_context.redacted.source_context),
         runner_context_name(&model.authority_context.redacted.runner_context),

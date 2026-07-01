@@ -73,6 +73,12 @@ fn inspect_json_output_leaves_canary_sentinels_absent() {
 }
 
 #[test]
+/// Non-interactive CI inspect rendering leaves package-code canaries absent.
+fn non_interactive_ci_output_leaves_canary_sentinels_absent() {
+    assert_inspect_output_leaves_canary_sentinels_absent(RenderMode::CiJson);
+}
+
+#[test]
 /// Inspect failure rendering leaves every package-code canary sentinel absent.
 fn inspect_failure_output_leaves_canary_sentinels_absent() {
     assert_inspect_failure_leaves_canary_sentinels_absent(RenderMode::Human);
@@ -93,6 +99,8 @@ enum RenderMode {
     Human,
     /// JSON rendering for agents and CI.
     Json,
+    /// JSON rendering with a non-interactive CI source context.
+    CiJson,
 }
 
 impl RenderMode {
@@ -101,6 +109,14 @@ impl RenderMode {
         match self {
             RenderMode::Human => vec!["safe-npx", "inspect", "create-example@1.2.3"],
             RenderMode::Json => vec!["safe-npx", "--json", "inspect", "create-example@1.2.3"],
+            RenderMode::CiJson => vec![
+                "safe-npx",
+                "--json",
+                "--source-context",
+                "ci",
+                "inspect",
+                "create-example@1.2.3",
+            ],
         }
     }
 }

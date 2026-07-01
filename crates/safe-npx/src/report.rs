@@ -11,11 +11,12 @@ use crate::report_inspect::{
     build_inspect_model, render_model_facts, render_model_intent, render_model_summary,
 };
 use crate::{
-    extract_for_inspect, inspect_raw_spec_with_probe, serialize_redacted_string, ArtifactIdentity,
-    Cli, ClosureCommandIdentity, ClosureDecision, CommandIntent, CountingProbe, Decision,
-    InspectModel, M1Reason, M2Reason, NpmMetadataClient, PackageSpecParse, RegistryEvidence,
-    RegistryTransport, ReqwestRegistryTransport, ReqwestTarballTransport, ResolvedPackage,
-    RootArtifactResolver, StaticExtractionEvidence, TarballDownloader, TarballTransport,
+    evaluate_m1_policy, extract_for_inspect, inspect_raw_spec_with_probe,
+    serialize_redacted_string, ArtifactIdentity, Cli, ClosureCommandIdentity, ClosureDecision,
+    CommandIntent, CountingProbe, Decision, InspectModel, M1Reason, M2Reason, NpmMetadataClient,
+    PackageSpecParse, PolicyDecision, PolicyNextAction, RegistryEvidence, RegistryTransport,
+    ReqwestRegistryTransport, ReqwestTarballTransport, ResolvedPackage, RootArtifactResolver,
+    SourceContext, StaticExtractionEvidence, TarballDownloader, TarballTransport,
 };
 use serde::Serialize;
 
@@ -23,6 +24,8 @@ use serde::Serialize;
 pub const M2_EXECUTION_REFUSED_EXIT_CODE: i32 = 5;
 /// M2 exit code used when the requested execution shape is unsupported.
 pub const M2_UNSUPPORTED_EXIT_CODE: i32 = 2;
+/// M4 exit code used when non-interactive policy needs a human question.
+pub const M4_ASK_REQUIRED_EXIT_CODE: i32 = 10;
 
 /// CLI output and process status.
 #[derive(Debug, PartialEq, Eq)]
@@ -249,6 +252,12 @@ pub fn render_report(cli: &Cli, report: &Report) -> anyhow::Result<String> {
         ))?);
     }
 
+    let policy = evaluate_m1_policy(&report.recommendation, &report.m1);
+    let non_interactive_ask_required = policy_requires_interaction(&policy)
+        && source_context_is_non_interactive(
+            &report.inspect.authority_context.redacted.source_context,
+        );
+
     Ok(format!(
         "Package: {}\nStatus: {}\nRecommendation: {:?}\n\n[Command]\n{}[Facts]\n{}[Decision]\n{}[Safety boundary]\n{}",
         crate::redact_report_value(&report.package_spec),
@@ -256,7 +265,7 @@ pub fn render_report(cli: &Cli, report: &Report) -> anyhow::Result<String> {
         report.inspect.decision.recommendation,
         render_model_intent(&report.inspect),
         render_model_facts(&report.inspect),
-        render_model_summary(&report.inspect),
+        render_model_summary(&report.inspect, non_interactive_ask_required),
         safety_boundary(report)
     ))
 }
@@ -349,6 +358,15 @@ pub fn run_with_exit_code(cli: &Cli) -> anyhow::Result<CliRunOutput> {
 
 /// Return the process exit code implied by the current report.
 pub(crate) fn exit_code_for_report(report: &Report) -> i32 {
+    let policy = evaluate_m1_policy(&report.recommendation, &report.m1);
+    if policy_requires_interaction(&policy)
+        && source_context_is_non_interactive(
+            &report.inspect.authority_context.redacted.source_context,
+        )
+    {
+        return M4_ASK_REQUIRED_EXIT_CODE;
+    }
+
     match &report.m1 {
         M1Evidence::Verified { .. } => 0,
         M1Evidence::NoDownload { .. } => 2,
@@ -358,4 +376,18 @@ pub(crate) fn exit_code_for_report(report: &Report) -> i32 {
             M1Reason::RegistryError | M1Reason::MissingPackage | M1Reason::MissingVersion => 3,
         },
     }
+}
+
+/// Return true when policy cannot proceed without a human answer.
+pub(crate) fn policy_requires_interaction(policy: &crate::PolicyEvaluation) -> bool {
+    matches!(policy.decision, PolicyDecision::Ask)
+        && matches!(policy.required_next_action, PolicyNextAction::AskUser)
+}
+
+/// Return true when the declared source context cannot answer a terminal prompt.
+pub(crate) fn source_context_is_non_interactive(source_context: &SourceContext) -> bool {
+    matches!(
+        source_context,
+        SourceContext::AgentSkill | SourceContext::Ci
+    )
 }
