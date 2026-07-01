@@ -82,7 +82,7 @@
       "reasons": [
         "registry_error"
       ],
-      "exit_code": 3,
+      "exit_code": 13,
       "execution_state": "stopped_before_execution",
       "package_code_executed": false,
       "heuristics_count": 0
@@ -114,7 +114,7 @@
     "findings": []
   },
   "execution": null,
-  "exit_code": 3,
+  "exit_code": 13,
   "inspect": {
     "facts": {
       "command": {

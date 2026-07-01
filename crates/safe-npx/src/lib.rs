@@ -108,6 +108,9 @@ mod registry_evidence;
 mod registry_precedence;
 /// Human and JSON report rendering.
 mod report;
+#[cfg(test)]
+/// Tests for the M4 report exit-code contract.
+mod report_exit_code_tests;
 /// Shared inspect-model report helpers.
 mod report_inspect;
 /// Optional evidence rendering for human reports.

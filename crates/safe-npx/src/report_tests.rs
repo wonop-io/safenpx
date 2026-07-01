@@ -7,7 +7,7 @@ use crate::{
     NpmMetadataClient, RegistryHttpResponse, RegistryTransport, RegistryTransportError,
     RequiredNextAction, RootArtifactResolver, TarballDownloader, TarballHttpResponse,
     TarballTransport, TarballTransportError, M2_EXECUTION_REFUSED_EXIT_CODE,
-    M2_UNSUPPORTED_EXIT_CODE,
+    M2_UNSUPPORTED_EXIT_CODE, M4_ASK_REQUIRED_EXIT_CODE,
 };
 use base64::prelude::{Engine as _, BASE64_STANDARD};
 use sha2::{Digest, Sha512};
@@ -369,7 +369,7 @@ fn non_interactive_stop_uses_ask_user_next_action() {
     assert_eq!(report.reasons, vec![M2Reason::NonInteractiveStop]);
     assert_eq!(report.required_next_action, RequiredNextAction::AskUser);
     assert!(report.execution.is_none());
-    assert_eq!(report.exit_code, M2_EXECUTION_REFUSED_EXIT_CODE);
+    assert_eq!(report.exit_code, M4_ASK_REQUIRED_EXIT_CODE);
 }
 
 #[test]

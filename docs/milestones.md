@@ -352,15 +352,15 @@ Acceptance criteria:
 - Fixture output explains whether the user can retry with a narrower command,
   inspect-only mode, or an explicit override.
 
-Exit code mapping:
+M4 exit code contract:
 
 - `0`: successful inspection or execution.
-- `10`: ask required.
-- `11`: denied.
-- `12`: unsupported input.
-- `13`: inspection error.
-- `14`: execution refused.
-- `15`: delegated execution failed.
+- `10`: `ask` required in a non-interactive context.
+- `11`: `deny`.
+- `12`: `unsupported`.
+- `13`: `inspection_error`.
+- `14`: `execution_refused`.
+- `15`: delegated execution failed after a future execution handoff.
 
 ## M5: Execute Mode Alpha
 

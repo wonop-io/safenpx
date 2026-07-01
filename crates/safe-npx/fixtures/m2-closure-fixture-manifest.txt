@@ -1,13 +1,13 @@
 # safe-npx M2 closure fixture manifest
 # format: id|kind|description|expected_decision|expected_reason|expected_exit_code|sentinel
-root_binary|canary|root package binary trap must not run during inspection|execution_refused|non_interactive_stop|5|no_execution
-network_attempt|canary|network attempt trap is detected without package-code execution|execution_refused|non_interactive_stop|5|no_execution
+root_binary|canary|root package binary trap must not run during inspection|execution_refused|non_interactive_stop|10|no_execution
+network_attempt|canary|network attempt trap is detected without package-code execution|execution_refused|non_interactive_stop|10|no_execution
 single_bin|bin|single deterministic package bin can be selected for closure proof|ask|interactive_approval_required|0|no_execution
-ambiguous_bin|bin|ambiguous package bin selection fails closed before execution|unsupported|ambiguous_bin|2|no_execution
-lifecycle_postinstall|lifecycle|postinstall lifecycle script blocks execution closure|execution_refused|lifecycle_script_present|5|no_execution
-dependency_runtime|dependency|declared runtime dependency is not executable proof until verified|execution_refused|unsupported_closure|5|no_execution
-registry_precedence_mismatch|registry|execution registry source differs from inspected registry source|execution_refused|registry_precedence_mismatch|5|no_execution
-metadata_race|race|registry metadata changed between inspection and execution preparation|execution_refused|metadata_changed|5|no_execution
-cache_identity_mismatch|cache|cache entry digest differs from inspected artifact identity|execution_refused|cache_identity_mismatch|5|no_execution
-generated_shim_mismatch|shim|generated shim bytes differ from deterministic shim evidence|execution_refused|shim_identity_mismatch|5|no_execution
-unsupported_dependency_closure|closure|full dependency execution closure cannot be proven|execution_refused|unsupported_closure|5|no_execution
+ambiguous_bin|bin|ambiguous package bin selection fails closed before execution|unsupported|ambiguous_bin|12|no_execution
+lifecycle_postinstall|lifecycle|postinstall lifecycle script blocks execution closure|execution_refused|lifecycle_script_present|14|no_execution
+dependency_runtime|dependency|declared runtime dependency is not executable proof until verified|execution_refused|unsupported_closure|14|no_execution
+registry_precedence_mismatch|registry|execution registry source differs from inspected registry source|execution_refused|registry_precedence_mismatch|14|no_execution
+metadata_race|race|registry metadata changed between inspection and execution preparation|execution_refused|metadata_changed|14|no_execution
+cache_identity_mismatch|cache|cache entry digest differs from inspected artifact identity|execution_refused|cache_identity_mismatch|14|no_execution
+generated_shim_mismatch|shim|generated shim bytes differ from deterministic shim evidence|execution_refused|shim_identity_mismatch|14|no_execution
+unsupported_dependency_closure|closure|full dependency execution closure cannot be proven|execution_refused|unsupported_closure|14|no_execution

@@ -3,13 +3,13 @@
 parser_supported_unscoped|parser|create-example@1.2.3|supported||0||none
 parser_supported_scoped|parser|@scope/create-example@1.2.3|supported||0||none
 parser_forwarded_args|parser|create-example@1.2.3|supported||0|--template react|none
-parser_unsupported_latest|parser|create-example@latest|unsupported|unsupported_spec|2||no_network
-parser_unsupported_scoped_range|parser|@scope/create-example@^1.2.3|unsupported|unsupported_spec|2||no_network
-parser_malformed_empty|parser||malformed|malformed_spec|2||no_network
-parser_malformed_scoped|parser|@scope/|malformed|malformed_spec|2||no_network
-parser_malformed_empty_version|parser|create-example@|malformed|malformed_spec|2||no_network
-parser_malformed_empty_scope|parser|@/pkg@1.2.3|malformed|malformed_spec|2||no_network
-registry_error|registry|create-example@1.2.3|inspection_error|registry_error|3||no_execution
-missing_package|registry|definitely-missing-safe-npx-fixture@1.2.3|inspection_error|missing_package|3||no_execution
-missing_version|registry|create-example@99.99.99|inspection_error|missing_version|3||no_execution
-integrity_mismatch|artifact|create-example@1.2.3|deny|integrity_mismatch|4||no_execution
+parser_unsupported_latest|parser|create-example@latest|unsupported|unsupported_spec|12||no_network
+parser_unsupported_scoped_range|parser|@scope/create-example@^1.2.3|unsupported|unsupported_spec|12||no_network
+parser_malformed_empty|parser||malformed|malformed_spec|12||no_network
+parser_malformed_scoped|parser|@scope/|malformed|malformed_spec|12||no_network
+parser_malformed_empty_version|parser|create-example@|malformed|malformed_spec|12||no_network
+parser_malformed_empty_scope|parser|@/pkg@1.2.3|malformed|malformed_spec|12||no_network
+registry_error|registry|create-example@1.2.3|inspection_error|registry_error|13||no_execution
+missing_package|registry|definitely-missing-safe-npx-fixture@1.2.3|inspection_error|missing_package|13||no_execution
+missing_version|registry|create-example@99.99.99|inspection_error|missing_version|13||no_execution
+integrity_mismatch|artifact|create-example@1.2.3|deny|integrity_mismatch|11||no_execution

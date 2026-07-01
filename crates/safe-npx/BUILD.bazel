@@ -63,6 +63,7 @@ rust_library(
         "src/registry_precedence.rs",
         "src/redaction.rs",
         "src/report.rs",
+        "src/report_exit_code_tests.rs",
         "src/report_optional_evidence.rs",
         "src/report_redaction_tests.rs",
         "src/report_inspect.rs",

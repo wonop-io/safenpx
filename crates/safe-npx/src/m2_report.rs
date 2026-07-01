@@ -1,8 +1,8 @@
 //! M2 execution-refusal report helpers.
 
 use crate::{
-    evaluate_m2_policy, ClosureDecision, M2Reason, PolicyDecision, PolicyNextAction,
-    RequiredNextAction, M2_EXECUTION_REFUSED_EXIT_CODE, M2_UNSUPPORTED_EXIT_CODE,
+    evaluate_m2_policy, exit_code_for_policy_decision, ClosureDecision, M2Reason, PolicyDecision,
+    PolicyNextAction, RequiredNextAction,
 };
 
 /// Return the next action implied by M2 refusal reasons.
@@ -31,12 +31,18 @@ pub(crate) fn closure_decision_for_m2_reasons(reasons: &[M2Reason]) -> ClosureDe
 
 /// Return the M2 fixture exit code for a closure decision.
 pub(crate) fn exit_code_for_closure_decision(decision: &ClosureDecision) -> i32 {
+    exit_code_for_policy_decision(&policy_decision_for_closure_decision(decision))
+}
+
+/// Convert M2 closure decisions back to the canonical M4 policy vocabulary.
+fn policy_decision_for_closure_decision(decision: &ClosureDecision) -> PolicyDecision {
     match decision {
-        ClosureDecision::Allow | ClosureDecision::Ask => 0,
-        ClosureDecision::Unsupported => M2_UNSUPPORTED_EXIT_CODE,
-        ClosureDecision::ExecutionRefused => M2_EXECUTION_REFUSED_EXIT_CODE,
-        ClosureDecision::Deny => 1,
-        ClosureDecision::InspectionError => 3,
+        ClosureDecision::Allow => PolicyDecision::Allow,
+        ClosureDecision::Ask => PolicyDecision::Ask,
+        ClosureDecision::Deny => PolicyDecision::Deny,
+        ClosureDecision::Unsupported => PolicyDecision::Unsupported,
+        ClosureDecision::InspectionError => PolicyDecision::InspectionError,
+        ClosureDecision::ExecutionRefused => PolicyDecision::ExecutionRefused,
     }
 }
 

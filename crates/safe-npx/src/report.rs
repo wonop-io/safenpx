@@ -20,12 +20,24 @@ use crate::{
 };
 use serde::Serialize;
 
-/// M2 exit code used when execution closure proof fails before package code can run.
-pub const M2_EXECUTION_REFUSED_EXIT_CODE: i32 = 5;
-/// M2 exit code used when the requested execution shape is unsupported.
-pub const M2_UNSUPPORTED_EXIT_CODE: i32 = 2;
+/// M4 exit code used for successful inspection or execution.
+pub const M4_SUCCESS_EXIT_CODE: i32 = 0;
 /// M4 exit code used when non-interactive policy needs a human question.
 pub const M4_ASK_REQUIRED_EXIT_CODE: i32 = 10;
+/// M4 exit code used when policy denies the command.
+pub const M4_DENIED_EXIT_CODE: i32 = 11;
+/// M4 exit code used when the requested command shape is unsupported.
+pub const M4_UNSUPPORTED_EXIT_CODE: i32 = 12;
+/// M4 exit code used when evidence cannot be collected reliably.
+pub const M4_INSPECTION_ERROR_EXIT_CODE: i32 = 13;
+/// M4 exit code used when execution closure proof fails before package code can run.
+pub const M4_EXECUTION_REFUSED_EXIT_CODE: i32 = 14;
+/// M4 exit code reserved for delegated execution failure.
+pub const M4_DELEGATED_EXECUTION_FAILED_EXIT_CODE: i32 = 15;
+/// Compatibility alias for M2 execution-refusal paths.
+pub const M2_EXECUTION_REFUSED_EXIT_CODE: i32 = M4_EXECUTION_REFUSED_EXIT_CODE;
+/// Compatibility alias for M2 unsupported-command paths.
+pub const M2_UNSUPPORTED_EXIT_CODE: i32 = M4_UNSUPPORTED_EXIT_CODE;
 
 /// CLI output and process status.
 #[derive(Debug, PartialEq, Eq)]
@@ -286,6 +298,11 @@ pub fn build_m2_execution_refusal_report(
 ) -> M2ExecutionRefusalReport {
     let decision = closure_decision_for_m2_reasons(&reasons);
     let required_next_action = required_next_action_for_m2_reasons(&reasons);
+    let exit_code = if reasons.contains(&M2Reason::NonInteractiveStop) {
+        M4_ASK_REQUIRED_EXIT_CODE
+    } else {
+        exit_code_for_closure_decision(&decision)
+    };
 
     M2ExecutionRefusalReport {
         command,
@@ -293,7 +310,7 @@ pub fn build_m2_execution_refusal_report(
         reasons,
         required_next_action,
         execution: None,
-        exit_code: exit_code_for_closure_decision(&decision),
+        exit_code,
     }
 }
 
@@ -367,14 +384,17 @@ pub(crate) fn exit_code_for_report(report: &Report) -> i32 {
         return M4_ASK_REQUIRED_EXIT_CODE;
     }
 
-    match &report.m1 {
-        M1Evidence::Verified { .. } => 0,
-        M1Evidence::NoDownload { .. } => 2,
-        M1Evidence::Failed { reason, .. } => match reason {
-            M1Reason::IntegrityMismatch => 4,
-            M1Reason::UnsupportedSpec | M1Reason::MalformedSpec => 2,
-            M1Reason::RegistryError | M1Reason::MissingPackage | M1Reason::MissingVersion => 3,
-        },
+    exit_code_for_policy_decision(&policy.decision)
+}
+
+/// Return the process exit code for a canonical M4 policy decision.
+pub(crate) fn exit_code_for_policy_decision(decision: &PolicyDecision) -> i32 {
+    match decision {
+        PolicyDecision::Allow | PolicyDecision::Ask => M4_SUCCESS_EXIT_CODE,
+        PolicyDecision::Deny => M4_DENIED_EXIT_CODE,
+        PolicyDecision::Unsupported => M4_UNSUPPORTED_EXIT_CODE,
+        PolicyDecision::InspectionError => M4_INSPECTION_ERROR_EXIT_CODE,
+        PolicyDecision::ExecutionRefused => M4_EXECUTION_REFUSED_EXIT_CODE,
     }
 }
 

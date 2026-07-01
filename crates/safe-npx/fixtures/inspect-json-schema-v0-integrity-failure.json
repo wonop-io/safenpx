@@ -82,7 +82,7 @@
       "reasons": [
         "integrity_mismatch"
       ],
-      "exit_code": 4,
+      "exit_code": 11,
       "execution_state": "failed_before_execution",
       "package_code_executed": false,
       "heuristics_count": 0
@@ -114,7 +114,7 @@
     "findings": []
   },
   "execution": null,
-  "exit_code": 4,
+  "exit_code": 11,
   "inspect": {
     "facts": {
       "command": {

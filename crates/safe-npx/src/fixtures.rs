@@ -140,7 +140,11 @@ fn parse_forwarded_args(value: &str) -> Vec<String> {
 /// Tests for fixture manifest consumption.
 mod tests {
     use super::*;
-    use crate::{assert_no_network_for_raw_spec, parse_command_intent, M1Reason, PackageSpecParse};
+    use crate::{
+        assert_no_network_for_raw_spec, parse_command_intent, M1Reason, PackageSpecParse,
+        M4_DENIED_EXIT_CODE, M4_INSPECTION_ERROR_EXIT_CODE, M4_SUCCESS_EXIT_CODE,
+        M4_UNSUPPORTED_EXIT_CODE,
+    };
 
     #[test]
     /// Verifies parser fixtures drive parser behavior.
@@ -224,7 +228,12 @@ mod tests {
             .any(|fixture| fixture.id == "missing_version"));
         for fixture in registry {
             assert_supported_fixture_spec(&fixture);
-            assert_seeded_failure_outcome(&fixture, "inspection_error", 3, "no_execution");
+            assert_seeded_failure_outcome(
+                &fixture,
+                "inspection_error",
+                M4_INSPECTION_ERROR_EXIT_CODE,
+                "no_execution",
+            );
         }
     }
 
@@ -238,7 +247,7 @@ mod tests {
             .any(|fixture| fixture.id == "integrity_mismatch"));
         for fixture in artifact {
             assert_supported_fixture_spec(&fixture);
-            assert_seeded_failure_outcome(&fixture, "deny", 4, "no_execution");
+            assert_seeded_failure_outcome(&fixture, "deny", M4_DENIED_EXIT_CODE, "no_execution");
         }
     }
 
@@ -258,8 +267,10 @@ mod tests {
     /// Return the process exit code implied by parser state.
     fn parser_exit_code(parse: &PackageSpecParse) -> i32 {
         match parse {
-            PackageSpecParse::Supported(_) => 0,
-            PackageSpecParse::Unsupported(_) | PackageSpecParse::Malformed(_) => 2,
+            PackageSpecParse::Supported(_) => M4_SUCCESS_EXIT_CODE,
+            PackageSpecParse::Unsupported(_) | PackageSpecParse::Malformed(_) => {
+                M4_UNSUPPORTED_EXIT_CODE
+            }
         }
     }
 

@@ -259,7 +259,7 @@ mod tests {
     /// Verifies missing fixture kinds fail with actionable kind names.
     fn missing_fixture_kinds_are_actionable() {
         let fixtures = parse_m2_closure_fixture_manifest(
-            "root_binary|canary|only canary|execution_refused|non_interactive_stop|5|no_execution",
+            "root_binary|canary|only canary|execution_refused|non_interactive_stop|10|no_execution",
         );
 
         assert_eq!(

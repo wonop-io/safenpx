@@ -80,7 +80,7 @@
       "reasons": [
         "unsupported_spec"
       ],
-      "exit_code": 2,
+      "exit_code": 12,
       "execution_state": "stopped_before_execution",
       "package_code_executed": false,
       "heuristics_count": 0
@@ -112,7 +112,7 @@
     "findings": []
   },
   "execution": null,
-  "exit_code": 2,
+  "exit_code": 12,
   "inspect": {
     "facts": {
       "command": {

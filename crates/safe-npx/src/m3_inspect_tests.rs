@@ -5,6 +5,7 @@ use crate::{
     build_report_with_resolver, render_report, Cli, M1Evidence, NpmMetadataClient,
     RegistryHttpResponse, RegistryTransport, RegistryTransportError, RootArtifactResolver,
     TarballDownloader, TarballHttpResponse, TarballTransport, TarballTransportError,
+    M4_DENIED_EXIT_CODE, M4_INSPECTION_ERROR_EXIT_CODE, M4_UNSUPPORTED_EXIT_CODE,
 };
 use base64::prelude::{Engine as _, BASE64_STANDARD};
 use flate2::{write::GzEncoder, Compression};
@@ -113,7 +114,7 @@ fn inspect_action_reports_extraction_failure_without_panic() {
     let cli = Cli::parse_from(["safe-npx", "inspect", "create-example@1.2.3"]);
     let report = build_report_with_resolver(&cli, &verified_resolver(b"not-a-tarball"));
 
-    assert_eq!(exit_code_for_report(&report), 3);
+    assert_eq!(exit_code_for_report(&report), M4_INSPECTION_ERROR_EXIT_CODE);
     let M1Evidence::Failed {
         reason,
         downloaded,
@@ -136,7 +137,7 @@ fn inspect_action_reports_integrity_failure_without_extraction() {
     let cli = Cli::parse_from(["safe-npx", "inspect", "create-example@1.2.3"]);
     let report = build_report_with_resolver(&cli, &resolver);
 
-    assert_eq!(exit_code_for_report(&report), 4);
+    assert_eq!(exit_code_for_report(&report), M4_DENIED_EXIT_CODE);
     let M1Evidence::Failed {
         reason,
         downloaded,
@@ -390,7 +391,7 @@ fn inspect_action_keeps_unsupported_specs_before_downloads() {
     assert!(output.contains("Rejected: create-example@latest"));
     assert!(output.contains("Reason: unsupported_spec"));
     assert!(output.contains("Downloaded: false"));
-    assert_eq!(exit_code_for_report(&report), 2);
+    assert_eq!(exit_code_for_report(&report), M4_UNSUPPORTED_EXIT_CODE);
 }
 
 /// Render a report through the supplied resolver.

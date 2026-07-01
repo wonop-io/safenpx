@@ -24,17 +24,17 @@
   "semantic_cases": {
     "execution_refusal": {
       "decision": "execution_refused",
-      "exit_code": 5,
+      "exit_code": 14,
       "required_next_action": "unsupported"
     },
     "inspection_failure": {
       "decision": "inspection_error",
-      "exit_code": 3,
+      "exit_code": 13,
       "required_next_action": "inspect_only"
     },
     "unsupported_input": {
       "decision": "unsupported",
-      "exit_code": 2,
+      "exit_code": 12,
       "required_next_action": "retry_narrower_command"
     },
     "verified_ask": {

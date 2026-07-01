@@ -8,6 +8,7 @@ use crate::{
     InspectFacts, InspectJsonDecision, InspectJsonNextAction, InspectModel, InspectNextAction,
     InspectRefusalFact, InspectRefusalState, M1Evidence, M1Reason, M2Reason, PackageSpec,
     RegistrySource, Report, SourceContext, UnsupportedSpec, UnsupportedSpecCategory,
+    M4_INSPECTION_ERROR_EXIT_CODE, M4_UNSUPPORTED_EXIT_CODE,
 };
 use serde::Serialize;
 use serde_json::Value;
@@ -71,6 +72,7 @@ fn unsupported_json_uses_m3_decision_and_retry_action() {
     assert_eq!(value["required_next_action"], "retry_narrower_command");
     assert_reserved_fields_are_null(&value);
     assert_eq!(value["execution"], Value::Null);
+    assert_eq!(value["exit_code"], M4_UNSUPPORTED_EXIT_CODE);
     assert!(value["facts"]["refusal"].is_object());
 }
 
@@ -85,7 +87,7 @@ fn failed_inspection_json_uses_inspection_error_decision() {
     assert_eq!(value["required_next_action"], "inspect_only");
     assert_reserved_fields_are_null(&value);
     assert_eq!(value["execution"], Value::Null);
-    assert_eq!(value["exit_code"], 3);
+    assert_eq!(value["exit_code"], M4_INSPECTION_ERROR_EXIT_CODE);
 }
 
 /// Verifies execution-refused JSON also uses the M3 schema envelope.
