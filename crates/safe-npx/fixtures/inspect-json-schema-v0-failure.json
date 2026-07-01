@@ -80,7 +80,7 @@
       "decision": "inspection_error",
       "required_next_action": "inspect_only",
       "reasons": [
-        "fixture"
+        "registry_error"
       ],
       "exit_code": 3,
       "execution_state": "stopped_before_execution",
@@ -98,9 +98,21 @@
   },
   "decision": "inspection_error",
   "reasons": [
-    "fixture"
+    "registry_error"
   ],
   "required_next_action": "inspect_only",
+  "policy": {
+    "policy_version": "m4-policy-v0",
+    "decision": "inspection_error",
+    "reasons": [
+      "registry_error"
+    ],
+    "required_next_action": "inspect_only",
+    "rule_ids": [
+      "inspection_unavailable"
+    ],
+    "findings": []
+  },
   "execution": null,
   "exit_code": 3,
   "inspect": {

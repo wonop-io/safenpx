@@ -31,6 +31,7 @@ The V0 top-level object contains:
 - `decision`
 - `reasons`
 - `required_next_action`
+- `policy`
 - `execution`
 - `exit_code`
 
@@ -39,6 +40,13 @@ V0. M3 does not query a hosted audit registry, fetch third-party attestations,
 or compute release-diff evidence for these fields. A non-null value requires a
 later schema change with documented provenance and failure semantics. `execution`
 is null for inspect mode.
+
+`policy` contains the canonical M4 policy evaluation used to derive
+agent-facing `decision`, `reasons`, and `required_next_action` during the M4
+transition. It includes `policy_version`, stable `reasons`, stable `rule_ids`,
+and provisional `findings` with observed values and thresholds when a policy
+threshold fires. Integrations should treat `policy.findings` as evidence for
+the decision, not as proof that a package is safe.
 
 `decision_receipt` is a non-authoritative inspect evidence record. It includes
 artifact digest identity when available, command identity, evidence summary,

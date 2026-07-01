@@ -80,7 +80,7 @@
       "decision": "deny",
       "required_next_action": "none",
       "reasons": [
-        "fixture"
+        "integrity_mismatch"
       ],
       "exit_code": 4,
       "execution_state": "failed_before_execution",
@@ -98,9 +98,21 @@
   },
   "decision": "deny",
   "reasons": [
-    "fixture"
+    "integrity_mismatch"
   ],
   "required_next_action": "none",
+  "policy": {
+    "policy_version": "m4-policy-v0",
+    "decision": "deny",
+    "reasons": [
+      "integrity_mismatch"
+    ],
+    "required_next_action": "none",
+    "rule_ids": [
+      "integrity_mismatch"
+    ],
+    "findings": []
+  },
   "execution": null,
   "exit_code": 4,
   "inspect": {

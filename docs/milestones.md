@@ -312,13 +312,18 @@ split into issues #66 through #76.
 
 Initial thresholds:
 
-- Recent publish warning: package version published within 24 hours, because
-  very new releases have had less time for users, maintainers, or automated
-  systems to notice compromise.
-- Large package warning: tarball larger than 5 MB.
-- Large file-count warning: more than 500 files.
-- Lifecycle script: ask in interactive mode, stop in non-interactive mode.
-- Integrity mismatch or resolver ambiguity: deny.
+- Recent publish warning: package version published within
+  `M4_RECENT_PUBLISH_WARNING_HOURS` (`24`) hours, because very new releases
+  have had less time for users, maintainers, or automated systems to notice
+  compromise.
+- Large package warning: tarball larger than
+  `M4_LARGE_TARBALL_WARNING_BYTES` (`5 * 1024 * 1024`) bytes.
+- Large file-count warning: more than `M4_LARGE_FILE_COUNT_WARNING` (`500`)
+  files.
+- Lifecycle script: threshold policy asks before execution; #69 wires the
+  non-interactive stop branch.
+- Integrity mismatch: deny.
+- Resolver ambiguity or missing bin: unsupported with retry-narrower-command.
 - Unsupported closure: execution_refused.
 - Hard denials are proof failures. Heuristic warnings should not become denials
   until validated.

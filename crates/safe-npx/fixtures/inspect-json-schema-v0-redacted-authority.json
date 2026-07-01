@@ -120,7 +120,7 @@
       "decision": "ask",
       "required_next_action": "ask_user",
       "reasons": [
-        "fixture"
+        "caller_requested_ask"
       ],
       "exit_code": 0,
       "execution_state": "stopped_before_execution",
@@ -138,9 +138,21 @@
   },
   "decision": "ask",
   "reasons": [
-    "fixture"
+    "caller_requested_ask"
   ],
   "required_next_action": "ask_user",
+  "policy": {
+    "policy_version": "m4-policy-v0",
+    "decision": "ask",
+    "reasons": [
+      "caller_requested_ask"
+    ],
+    "required_next_action": "ask_user",
+    "rule_ids": [
+      "caller_recommendation"
+    ],
+    "findings": []
+  },
   "execution": null,
   "exit_code": 0,
   "inspect": {

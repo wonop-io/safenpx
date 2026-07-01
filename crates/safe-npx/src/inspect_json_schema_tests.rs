@@ -42,6 +42,7 @@ fn inspect_json_schema_has_required_top_level_shape() {
         "decision",
         "reasons",
         "required_next_action",
+        "policy",
         "execution",
         "exit_code",
     ] {
@@ -51,6 +52,7 @@ fn inspect_json_schema_has_required_top_level_shape() {
     assert_eq!(value["schema_version"], "0.1");
     assert_eq!(value["decision"], "ask");
     assert_eq!(value["required_next_action"], "ask_user");
+    assert_eq!(value["policy"]["policy_version"], "m4-policy-v0");
     assert_reserved_fields_are_null(&value);
     assert!(value["decision_receipt"].is_object());
     assert_eq!(value["execution"], Value::Null);

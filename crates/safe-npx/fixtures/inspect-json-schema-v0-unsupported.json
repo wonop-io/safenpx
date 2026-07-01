@@ -78,7 +78,7 @@
       "decision": "unsupported",
       "required_next_action": "retry_narrower_command",
       "reasons": [
-        "fixture"
+        "unsupported_spec"
       ],
       "exit_code": 2,
       "execution_state": "stopped_before_execution",
@@ -96,9 +96,21 @@
   },
   "decision": "unsupported",
   "reasons": [
-    "fixture"
+    "unsupported_spec"
   ],
   "required_next_action": "retry_narrower_command",
+  "policy": {
+    "policy_version": "m4-policy-v0",
+    "decision": "unsupported",
+    "reasons": [
+      "unsupported_spec"
+    ],
+    "required_next_action": "retry_narrower_command",
+    "rule_ids": [
+      "unsupported_input"
+    ],
+    "findings": []
+  },
   "execution": null,
   "exit_code": 2,
   "inspect": {

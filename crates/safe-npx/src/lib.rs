@@ -46,6 +46,9 @@ mod inspect_human_golden_tests;
 #[cfg(test)]
 /// Expanded deterministic golden tests for M3 inspect JSON.
 mod inspect_json_golden_tests;
+#[cfg(test)]
+/// Tests for M4 policy metadata in inspect JSON.
+mod inspect_json_policy_tests;
 /// M3 inspect JSON schema v0.
 mod inspect_json_schema;
 #[cfg(test)]
@@ -88,6 +91,8 @@ mod package_metadata;
 mod parser;
 /// M4 provisional policy evaluation model.
 mod policy;
+/// Time helpers for provisional M4 policy thresholds.
+mod policy_time;
 #[cfg(test)]
 /// Reviewed process execution boundary.
 mod process_boundary;

@@ -4,11 +4,18 @@
 //! work adds thresholds and exit-code semantics here instead of spreading them
 //! through human output, JSON output, and CLI plumbing.
 
-use crate::{Decision, M1Evidence, M1Reason, M2Reason};
+use crate::policy_time::{current_unix_seconds, parse_rfc3339_utc_seconds};
+use crate::{Decision, M1Evidence, M1Reason, M2Reason, StaticExtractionEvidence};
 use serde::Serialize;
 
 /// Current provisional policy version.
 pub const M4_POLICY_VERSION: &str = "m4-policy-v0";
+/// Recent publish warning threshold for package versions.
+pub const M4_RECENT_PUBLISH_WARNING_HOURS: u64 = 24;
+/// Large tarball warning threshold for verified root package bytes.
+pub const M4_LARGE_TARBALL_WARNING_BYTES: usize = 5 * 1024 * 1024;
+/// Large file-count warning threshold for verified root package contents.
+pub const M4_LARGE_FILE_COUNT_WARNING: usize = 500;
 
 /// Versioned policy result consumed by reports, JSON, and exit-code work.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
@@ -23,6 +30,8 @@ pub struct PolicyEvaluation {
     pub required_next_action: PolicyNextAction,
     /// Policy rule identifiers that fired.
     pub rule_ids: Vec<PolicyRuleId>,
+    /// Structured evidence for threshold and policy findings.
+    pub findings: Vec<PolicyFinding>,
 }
 
 impl PolicyEvaluation {
@@ -39,8 +48,24 @@ impl PolicyEvaluation {
             reasons,
             required_next_action,
             rule_ids,
+            findings: Vec::new(),
         }
     }
+}
+
+/// Structured policy evidence for a fired rule.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+pub struct PolicyFinding {
+    /// Stable policy rule identifier.
+    pub rule_id: PolicyRuleId,
+    /// Stable reason associated with the rule.
+    pub reason: PolicyReason,
+    /// Observed value that triggered the rule.
+    pub observed: String,
+    /// Threshold or expected value for the rule.
+    pub threshold: String,
+    /// Human-readable evidence summary for reports and traces.
+    pub evidence: String,
 }
 
 /// Canonical M4 decision vocabulary.
@@ -107,6 +132,12 @@ pub enum PolicyReason {
     MissingBin,
     /// A lifecycle script is present in executable package metadata.
     LifecycleScriptPresent,
+    /// Package version was published recently enough to require caution.
+    RecentPublish,
+    /// Verified root tarball is larger than the provisional threshold.
+    LargePackage,
+    /// Verified root tarball contains more files than the provisional threshold.
+    LargeFileCount,
     /// Full execution closure cannot be proven.
     UnsupportedClosure,
     /// Metadata changed between inspection and execution preparation.
@@ -141,6 +172,12 @@ pub enum PolicyRuleId {
     UnsupportedClosure,
     /// Static lifecycle evidence blocks execution.
     LifecycleScript,
+    /// Package version was published within the freshness warning window.
+    RecentPublish,
+    /// Verified tarball bytes exceed the provisional large-package threshold.
+    LargePackage,
+    /// Verified package file count exceeds the provisional threshold.
+    LargeFileCount,
     /// Race or identity evidence changed after inspection.
     IdentityDrift,
     /// Non-interactive mode must stop before prompting.
@@ -149,8 +186,21 @@ pub enum PolicyRuleId {
 
 /// Evaluate M1/M3 report evidence into the canonical M4 policy result.
 pub fn evaluate_m1_policy(recommendation: &Decision, m1: &M1Evidence) -> PolicyEvaluation {
+    evaluate_m1_policy_at(recommendation, m1, current_unix_seconds())
+}
+
+/// Evaluate M1/M3 report evidence at a deterministic unix timestamp.
+pub fn evaluate_m1_policy_at(
+    recommendation: &Decision,
+    m1: &M1Evidence,
+    now_unix_seconds: u64,
+) -> PolicyEvaluation {
     match m1 {
-        M1Evidence::Verified { .. } => {
+        M1Evidence::Verified {
+            registry_evidence,
+            static_extraction,
+            ..
+        } => {
             let (decision, reason, next_action) = match recommendation {
                 Decision::Allow => (
                     PolicyDecision::Allow,
@@ -168,12 +218,19 @@ pub fn evaluate_m1_policy(recommendation: &Decision, m1: &M1Evidence) -> PolicyE
                     PolicyNextAction::None,
                 ),
             };
-            PolicyEvaluation::new(
+            let mut policy = PolicyEvaluation::new(
                 decision,
                 vec![reason],
                 next_action,
                 vec![PolicyRuleId::CallerRecommendation],
-            )
+            );
+            apply_threshold_findings(
+                &mut policy,
+                registry_evidence.publish_time.as_deref(),
+                static_extraction.as_ref(),
+                now_unix_seconds,
+            );
+            policy
         }
         M1Evidence::NoDownload { reason, .. } => match reason {
             M1Reason::UnsupportedSpec => PolicyEvaluation::new(
@@ -191,6 +248,111 @@ pub fn evaluate_m1_policy(recommendation: &Decision, m1: &M1Evidence) -> PolicyE
             other => failed_m1_policy(other),
         },
         M1Evidence::Failed { reason, .. } => failed_m1_policy(reason),
+    }
+}
+
+fn apply_threshold_findings(
+    policy: &mut PolicyEvaluation,
+    publish_time: Option<&str>,
+    static_extraction: Option<&StaticExtractionEvidence>,
+    now_unix_seconds: u64,
+) {
+    if let Some(publish_time) = publish_time {
+        if let Some(published_unix_seconds) = parse_rfc3339_utc_seconds(publish_time) {
+            if published_unix_seconds >= now_unix_seconds
+                || now_unix_seconds - published_unix_seconds
+                    < M4_RECENT_PUBLISH_WARNING_HOURS * 60 * 60
+            {
+                let observed = if published_unix_seconds >= now_unix_seconds {
+                    format!("published_at={publish_time}; clock_skew_or_future_publish=true")
+                } else {
+                    let age_hours = (now_unix_seconds - published_unix_seconds) / 60 / 60;
+                    format!("published_at={publish_time}; age_hours={age_hours}")
+                };
+                push_threshold_warning(
+                    policy,
+                    PolicyRuleId::RecentPublish,
+                    PolicyReason::RecentPublish,
+                    observed,
+                    format!("<{}h", M4_RECENT_PUBLISH_WARNING_HOURS),
+                    "package version was published within the provisional freshness warning window"
+                        .to_string(),
+                );
+            }
+        }
+    }
+
+    if let Some(static_extraction) = static_extraction {
+        if static_extraction.artifact_size_bytes > M4_LARGE_TARBALL_WARNING_BYTES {
+            push_threshold_warning(
+                policy,
+                PolicyRuleId::LargePackage,
+                PolicyReason::LargePackage,
+                format!("{} bytes", static_extraction.artifact_size_bytes),
+                format!(">{} bytes", M4_LARGE_TARBALL_WARNING_BYTES),
+                "verified root tarball exceeds the provisional size warning threshold".to_string(),
+            );
+        }
+
+        if static_extraction.file_count > M4_LARGE_FILE_COUNT_WARNING {
+            push_threshold_warning(
+                policy,
+                PolicyRuleId::LargeFileCount,
+                PolicyReason::LargeFileCount,
+                format!("{} files", static_extraction.file_count),
+                format!(">{} files", M4_LARGE_FILE_COUNT_WARNING),
+                "verified root tarball exceeds the provisional file-count warning threshold"
+                    .to_string(),
+            );
+        }
+
+        if !static_extraction.metadata.lifecycle_scripts.is_empty() {
+            let scripts = static_extraction
+                .metadata
+                .lifecycle_scripts
+                .keys()
+                .cloned()
+                .collect::<Vec<_>>()
+                .join(", ");
+            push_threshold_warning(
+                policy,
+                PolicyRuleId::LifecycleScript,
+                PolicyReason::LifecycleScriptPresent,
+                scripts,
+                "no lifecycle scripts".to_string(),
+                "root package declares lifecycle scripts that can execute during install"
+                    .to_string(),
+            );
+        }
+    }
+}
+
+/// Add a threshold warning to policy while preserving stronger decisions.
+fn push_threshold_warning(
+    policy: &mut PolicyEvaluation,
+    rule_id: PolicyRuleId,
+    reason: PolicyReason,
+    observed: String,
+    threshold: String,
+    evidence: String,
+) {
+    if !policy.reasons.contains(&reason) {
+        policy.reasons.push(reason.clone());
+    }
+    if !policy.rule_ids.contains(&rule_id) {
+        policy.rule_ids.push(rule_id.clone());
+    }
+    policy.findings.push(PolicyFinding {
+        rule_id,
+        reason,
+        observed,
+        threshold,
+        evidence,
+    });
+
+    if matches!(policy.decision, PolicyDecision::Allow) {
+        policy.decision = PolicyDecision::Ask;
+        policy.required_next_action = PolicyNextAction::AskUser;
     }
 }
 
@@ -241,6 +403,7 @@ fn m2_policy_decision(reasons: &[M2Reason]) -> PolicyDecision {
     PolicyDecision::Ask
 }
 
+/// Map failed M1 evidence into the canonical policy vocabulary.
 fn failed_m1_policy(reason: &M1Reason) -> PolicyEvaluation {
     match reason {
         M1Reason::IntegrityMismatch => PolicyEvaluation::new(
@@ -282,6 +445,7 @@ fn failed_m1_policy(reason: &M1Reason) -> PolicyEvaluation {
     }
 }
 
+/// Map an M2 refusal reason to a canonical policy reason.
 fn policy_reason_for_m2_reason(reason: &M2Reason) -> PolicyReason {
     match reason {
         M2Reason::InteractiveApprovalRequired => PolicyReason::CallerRequestedAsk,
@@ -297,6 +461,7 @@ fn policy_reason_for_m2_reason(reason: &M2Reason) -> PolicyReason {
     }
 }
 
+/// Map an M2 refusal reason to a stable policy rule identifier.
 fn policy_rule_for_m2_reason(reason: &M2Reason) -> PolicyRuleId {
     match reason {
         M2Reason::InteractiveApprovalRequired => PolicyRuleId::CallerRecommendation,
@@ -312,157 +477,5 @@ fn policy_rule_for_m2_reason(reason: &M2Reason) -> PolicyRuleId {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::{
-        ArtifactIdentity, PackageScopeCategory, RegistryEvidence, RegistrySource, ResolvedPackage,
-    };
-    use std::collections::BTreeMap;
-
-    #[test]
-    fn verified_evidence_uses_caller_recommendation_policy() {
-        let policy = evaluate_m1_policy(&Decision::Ask, &verified_m1());
-
-        assert_eq!(policy.policy_version, M4_POLICY_VERSION);
-        assert_eq!(policy.decision, PolicyDecision::Ask);
-        assert_eq!(policy.reasons, vec![PolicyReason::CallerRequestedAsk]);
-        assert_eq!(policy.required_next_action, PolicyNextAction::AskUser);
-        assert_eq!(policy.rule_ids, vec![PolicyRuleId::CallerRecommendation]);
-    }
-
-    #[test]
-    fn unsupported_and_malformed_input_map_to_unsupported_policy() {
-        for reason in [M1Reason::UnsupportedSpec, M1Reason::MalformedSpec] {
-            let policy = evaluate_m1_policy(
-                &Decision::Deny,
-                &M1Evidence::NoDownload {
-                    reason,
-                    downloaded: false,
-                },
-            );
-
-            assert_eq!(policy.decision, PolicyDecision::Unsupported);
-            assert_eq!(
-                policy.required_next_action,
-                PolicyNextAction::RetryNarrowerCommand
-            );
-        }
-    }
-
-    #[test]
-    fn integrity_mismatch_is_a_deny_policy() {
-        let policy = evaluate_m1_policy(
-            &Decision::Ask,
-            &M1Evidence::Failed {
-                reason: M1Reason::IntegrityMismatch,
-                downloaded: true,
-                detail: "sha512 mismatch".to_string(),
-            },
-        );
-
-        assert_eq!(policy.decision, PolicyDecision::Deny);
-        assert_eq!(policy.reasons, vec![PolicyReason::IntegrityMismatch]);
-        assert_eq!(policy.rule_ids, vec![PolicyRuleId::IntegrityMismatch]);
-    }
-
-    #[test]
-    fn registry_failures_are_inspection_errors() {
-        for reason in [
-            M1Reason::RegistryError,
-            M1Reason::MissingPackage,
-            M1Reason::MissingVersion,
-        ] {
-            let policy = evaluate_m1_policy(
-                &Decision::Allow,
-                &M1Evidence::Failed {
-                    reason,
-                    downloaded: false,
-                    detail: "registry failure".to_string(),
-                },
-            );
-
-            assert_eq!(policy.decision, PolicyDecision::InspectionError);
-            assert_eq!(policy.required_next_action, PolicyNextAction::InspectOnly);
-            assert_eq!(policy.rule_ids, vec![PolicyRuleId::InspectionUnavailable]);
-        }
-    }
-
-    #[test]
-    fn m2_unsupported_closure_is_execution_refused_policy() {
-        let policy = evaluate_m2_policy(&[M2Reason::UnsupportedClosure]);
-
-        assert_eq!(policy.decision, PolicyDecision::ExecutionRefused);
-        assert_eq!(policy.reasons, vec![PolicyReason::UnsupportedClosure]);
-        assert_eq!(policy.required_next_action, PolicyNextAction::InspectOnly);
-        assert_eq!(policy.rule_ids, vec![PolicyRuleId::UnsupportedClosure]);
-    }
-
-    #[test]
-    fn m2_resolver_ambiguity_is_unsupported_policy() {
-        for reason in [M2Reason::AmbiguousBin, M2Reason::MissingBin] {
-            let policy = evaluate_m2_policy(&[reason]);
-
-            assert_eq!(policy.decision, PolicyDecision::Unsupported);
-            assert_eq!(
-                policy.required_next_action,
-                PolicyNextAction::RetryNarrowerCommand
-            );
-            assert_eq!(policy.rule_ids, vec![PolicyRuleId::ResolverAmbiguity]);
-        }
-    }
-
-    #[test]
-    fn m2_non_interactive_stop_preserves_legacy_execution_refusal_policy() {
-        let policy = evaluate_m2_policy(&[M2Reason::NonInteractiveStop]);
-
-        assert_eq!(policy.decision, PolicyDecision::ExecutionRefused);
-        assert_eq!(policy.reasons, vec![PolicyReason::NonInteractiveStop]);
-        assert_eq!(policy.required_next_action, PolicyNextAction::AskUser);
-        assert_eq!(policy.rule_ids, vec![PolicyRuleId::NonInteractiveStop]);
-    }
-
-    fn verified_m1() -> M1Evidence {
-        M1Evidence::Verified {
-            resolved_package: ResolvedPackage {
-                name: "create-example".to_string(),
-                version: "1.2.3".to_string(),
-                registry: registry_source(),
-                tarball_url: "https://registry.npmjs.org/create-example/-/create-example-1.2.3.tgz"
-                    .to_string(),
-                integrity: "sha512-example".to_string(),
-            },
-            integrity_status: "verified",
-            artifact_identity: ArtifactIdentity {
-                name: "create-example".to_string(),
-                version: "1.2.3".to_string(),
-                integrity: "sha512-example".to_string(),
-                digest_algorithm: "sha512".to_string(),
-                digest: "abc123".to_string(),
-            },
-            registry_evidence: RegistryEvidence {
-                registry: registry_source(),
-                package_scope: PackageScopeCategory::Unscoped,
-                name: "create-example".to_string(),
-                version: "1.2.3".to_string(),
-                publish_time: None,
-                maintainers: Vec::new(),
-                publisher: None,
-                repository: None,
-                license: None,
-                provenance: BTreeMap::new(),
-                dist_integrity: "sha512-example".to_string(),
-                tarball_url: "https://registry.npmjs.org/create-example/-/create-example-1.2.3.tgz"
-                    .to_string(),
-                evidence_boundary: "registry metadata is not proof of tarball package contents",
-            },
-            static_extraction: None,
-        }
-    }
-
-    fn registry_source() -> RegistrySource {
-        RegistrySource {
-            url: "https://registry.npmjs.org/".to_string(),
-            scope: None,
-        }
-    }
-}
+#[path = "policy_tests.rs"]
+mod policy_tests;

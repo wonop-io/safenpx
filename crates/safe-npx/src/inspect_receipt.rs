@@ -104,6 +104,7 @@ pub fn build_inspect_decision_receipt(
     report: &Report,
     decision: InspectJsonDecision,
     required_next_action: InspectJsonNextAction,
+    reasons: Vec<String>,
     exit_code: i32,
 ) -> InspectDecisionReceipt {
     let authority = &report.inspect.authority_context.redacted;
@@ -124,7 +125,7 @@ pub fn build_inspect_decision_receipt(
         evidence_summary: ReceiptEvidenceSummary {
             decision,
             required_next_action,
-            reasons: report.inspect.decision.reasons.clone(),
+            reasons,
             exit_code,
             execution_state: report.inspect.execution_state.state.clone(),
             package_code_executed: report.inspect.execution_state.package_code_executed,
