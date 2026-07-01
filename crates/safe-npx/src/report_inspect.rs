@@ -7,7 +7,8 @@ use crate::{
     InspectAuthorityContext, InspectDecision, InspectExecutionState, InspectExecutionStateKind,
     InspectFacts, InspectHeuristic, InspectHeuristicKind, InspectModel, InspectNextAction,
     InspectRefusalFact, InspectRefusalState, M1Evidence, M1Reason, PackageSpecParse,
-    PolicyDecision, PolicyEvaluation, PolicyNextAction, SourceContext, UnsupportedSpecCategory,
+    PolicyDecision, PolicyEvaluation, PolicyNextAction, PolicyReason, SourceContext,
+    UnsupportedSpecCategory,
 };
 
 /// Build the shared inspect model from current report facts.
@@ -273,12 +274,49 @@ fn inspect_decision(policy: &PolicyEvaluation, facts: &InspectFacts) -> InspectD
         .refusal
         .as_ref()
         .map(|refusal| vec![reason_name(&refusal.reason).to_string()])
-        .unwrap_or_else(|| vec!["m3_heuristics_report_only".to_string()]);
+        .unwrap_or_else(|| policy_reason_names(policy));
 
     InspectDecision {
         recommendation: inspect_recommendation_for_policy(policy),
         reasons,
         required_next_action,
+    }
+}
+
+/// Return stable policy reason names for human decision output.
+fn policy_reason_names(policy: &PolicyEvaluation) -> Vec<String> {
+    policy
+        .reasons
+        .iter()
+        .map(policy_reason_name)
+        .map(ToString::to_string)
+        .collect()
+}
+
+/// Return the serialized name for a policy reason.
+fn policy_reason_name(reason: &PolicyReason) -> &'static str {
+    match reason {
+        PolicyReason::CallerRequestedAllow => "caller_requested_allow",
+        PolicyReason::CallerRequestedAsk => "caller_requested_ask",
+        PolicyReason::CallerRequestedDeny => "caller_requested_deny",
+        PolicyReason::UnsupportedSpec => "unsupported_spec",
+        PolicyReason::MalformedSpec => "malformed_spec",
+        PolicyReason::RegistryError => "registry_error",
+        PolicyReason::IntegrityMismatch => "integrity_mismatch",
+        PolicyReason::MissingPackage => "missing_package",
+        PolicyReason::MissingVersion => "missing_version",
+        PolicyReason::AmbiguousBin => "ambiguous_bin",
+        PolicyReason::MissingBin => "missing_bin",
+        PolicyReason::LifecycleScriptPresent => "lifecycle_script_present",
+        PolicyReason::RecentPublish => "recent_publish",
+        PolicyReason::LargePackage => "large_package",
+        PolicyReason::LargeFileCount => "large_file_count",
+        PolicyReason::UnsupportedClosure => "unsupported_closure",
+        PolicyReason::MetadataChanged => "metadata_changed",
+        PolicyReason::CacheIdentityMismatch => "cache_identity_mismatch",
+        PolicyReason::RegistryPrecedenceMismatch => "registry_precedence_mismatch",
+        PolicyReason::ShimIdentityMismatch => "shim_identity_mismatch",
+        PolicyReason::NonInteractiveStop => "non_interactive_stop",
     }
 }
 

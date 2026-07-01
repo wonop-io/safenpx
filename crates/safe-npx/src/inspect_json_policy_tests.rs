@@ -45,6 +45,49 @@ fn threshold_policy_findings_are_visible_in_json() {
     );
 }
 
+/// Verifies recent publish evidence produces an agent-visible ask decision.
+#[test]
+fn recent_publish_policy_ask_is_visible_in_json() {
+    let value = serde_json::to_value(build_inspect_json_report(&recent_publish_report()))
+        .expect("schema should serialize");
+
+    assert_eq!(value["decision"], "ask");
+    assert_eq!(value["required_next_action"], "ask_user");
+    assert_eq!(
+        value["reasons"],
+        serde_json::json!(["caller_requested_allow", "recent_publish"])
+    );
+    assert_eq!(
+        value["policy"]["rule_ids"],
+        serde_json::json!(["caller_recommendation", "recent_publish"])
+    );
+    assert_eq!(value["policy"]["findings"][0]["reason"], "recent_publish");
+    assert_eq!(
+        value["policy"]["findings"][0]["observed"],
+        "published_at=2999-01-01T00:00:00Z; clock_skew_or_future_publish=true"
+    );
+}
+
+/// Verifies large package evidence alone produces an agent-visible ask decision.
+#[test]
+fn large_package_policy_ask_is_visible_in_json() {
+    let value = serde_json::to_value(build_inspect_json_report(&large_package_report()))
+        .expect("schema should serialize");
+
+    assert_eq!(value["decision"], "ask");
+    assert_eq!(value["required_next_action"], "ask_user");
+    assert_eq!(
+        value["reasons"],
+        serde_json::json!(["caller_requested_allow", "large_package"])
+    );
+    assert_eq!(
+        value["policy"]["rule_ids"],
+        serde_json::json!(["caller_recommendation", "large_package"])
+    );
+    assert_eq!(value["policy"]["findings"].as_array().unwrap().len(), 1);
+    assert_eq!(value["policy"]["findings"][0]["reason"], "large_package");
+}
+
 /// Build a verified report with deterministic threshold-triggering evidence.
 fn threshold_report() -> Report {
     let intent = CommandIntent::supported(
@@ -100,6 +143,39 @@ fn threshold_report() -> Report {
     }
 }
 
+/// Build a verified report with deterministic freshness warning evidence.
+fn recent_publish_report() -> Report {
+    let mut report = threshold_report();
+    let M1Evidence::Verified {
+        registry_evidence,
+        static_extraction,
+        ..
+    } = &mut report.m1
+    else {
+        panic!("fixture should be verified");
+    };
+    registry_evidence.publish_time = Some("2999-01-01T00:00:00Z".to_string());
+    *static_extraction = None;
+    report
+}
+
+/// Build a verified report with only large-package threshold evidence.
+fn large_package_report() -> Report {
+    let mut report = threshold_report();
+    let M1Evidence::Verified {
+        static_extraction, ..
+    } = &mut report.m1
+    else {
+        panic!("fixture should be verified");
+    };
+    *static_extraction = Some(static_extraction_evidence(
+        crate::M4_LARGE_TARBALL_WARNING_BYTES + 1,
+        1,
+        &[],
+    ));
+    report
+}
+
 /// Build verified M1 evidence that includes threshold-triggering extraction.
 fn verified_m1(artifact: ArtifactIdentity) -> M1Evidence {
     M1Evidence::Verified {
@@ -135,11 +211,28 @@ fn verified_m1(artifact: ArtifactIdentity) -> M1Evidence {
 
 /// Build static extraction evidence that fires deterministic threshold rules.
 fn static_extraction_with_thresholds() -> StaticExtractionEvidence {
-    let mut lifecycle_scripts = BTreeMap::new();
-    lifecycle_scripts.insert(
-        "postinstall".to_string(),
-        "node scripts/postinstall.js".to_string(),
-    );
+    static_extraction_evidence(
+        crate::M4_LARGE_TARBALL_WARNING_BYTES + 1,
+        crate::M4_LARGE_FILE_COUNT_WARNING + 1,
+        &["postinstall"],
+    )
+}
+
+/// Build static extraction evidence with caller-selected threshold values.
+fn static_extraction_evidence(
+    artifact_size_bytes: usize,
+    file_count: usize,
+    lifecycle_script_names: &[&str],
+) -> StaticExtractionEvidence {
+    let lifecycle_scripts = lifecycle_script_names
+        .iter()
+        .map(|name| {
+            (
+                (*name).to_string(),
+                "node scripts/postinstall.js".to_string(),
+            )
+        })
+        .collect::<BTreeMap<_, _>>();
 
     StaticExtractionEvidence {
         metadata: ExtractedPackageMetadata {
@@ -151,8 +244,8 @@ fn static_extraction_with_thresholds() -> StaticExtractionEvidence {
             optional_evidence: PackageOptionalEvidence::default(),
             package_json_path: Path::new("package/package.json").to_path_buf(),
         },
-        artifact_size_bytes: crate::M4_LARGE_TARBALL_WARNING_BYTES + 1,
-        file_count: crate::M4_LARGE_FILE_COUNT_WARNING + 1,
+        artifact_size_bytes,
+        file_count,
         status: "extracted",
     }
 }

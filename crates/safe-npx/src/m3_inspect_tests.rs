@@ -191,6 +191,8 @@ fn inspect_human_output_reports_root_package_facts() {
     assert!(output.contains("postinstall -> node postinstall.js"));
     assert!(output.contains("left-pad (Runtime) 1.3.0 [declaration_only]"));
     assert!(output.contains("Recommendation: Ask"));
+    assert!(output.contains("Decision reasons: caller_requested_ask, lifecycle_script_present"));
+    assert!(output.contains("Required next action: ask_user"));
 }
 
 #[test]

@@ -168,7 +168,7 @@ fn human_and_json_renderers_consume_shared_model() {
     assert!(human.contains("left-pad (Runtime) 1.3.0 [declaration_only]"));
     assert!(human.contains("- lifecycle_scripts_present [report_only]"));
     assert!(human.contains("- dependency_declarations_present [report_only]"));
-    assert!(human.contains("Decision reasons: m3_heuristics_report_only"));
+    assert!(human.contains("Decision reasons: caller_requested_ask, lifecycle_script_present"));
     assert!(human.contains("Required next action: ask_user"));
     assert!(human.contains("Authority: command=create-example@1.2.3"));
     assert!(human.contains("Authority boundary: authority context describes ambient process authority; it is not sandboxing"));
